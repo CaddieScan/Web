@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+
 import '../services/store_service.dart';
+import '../services/product_service.dart';
 import 'home_page.dart';
 
 class LoginPage extends StatelessWidget {
   final StoreService storeService;
+  final ProductService productService;
 
   const LoginPage({
     super.key,
     required this.storeService,
+    required this.productService,
   });
 
   @override
@@ -19,7 +23,6 @@ class LoginPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo
               Container(
                 width: 140,
                 height: 140,
@@ -29,41 +32,28 @@ class LoginPage extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    '../assets/images/img.png',
-                    fit: BoxFit.cover,
-                  ),
+                    child: Image.asset(
+                      'images/img.png',
+                      fit: BoxFit.cover,
+                    ),
                 ),
               ),
-
               const SizedBox(height: 40),
-
-              _inputField(
-                icon: Icons.person,
-                hint: 'Username',
-              ),
-
+              _inputField(icon: Icons.person, hint: 'Username'),
               const SizedBox(height: 15),
-
-              _inputField(
-                icon: Icons.lock,
-                hint: 'Password',
-                obscure: true,
-              ),
-
+              _inputField(icon: Icons.lock, hint: 'Password', obscure: true),
               const SizedBox(height: 30),
-
               SizedBox(
                 width: 220,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    // 🔥 Navigation après login
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                         builder: (_) => HomePage(
                           storeService: storeService,
+                          productService: productService,
                         ),
                       ),
                     );
@@ -74,10 +64,7 @@ class LoginPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
-                    'Connexion',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  child: const Text('Connexion', style: TextStyle(fontSize: 18)),
                 ),
               ),
             ],

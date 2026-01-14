@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+
 import '../services/store_service.dart';
+import '../services/product_service.dart';
 import 'stores_page.dart';
 
 class HomePage extends StatelessWidget {
   final StoreService storeService;
-  const HomePage({super.key, required this.storeService});
+  final ProductService productService;
+
+  const HomePage({
+    super.key,
+    required this.storeService,
+    required this.productService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -12,8 +20,8 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(title: const Text('Home')),
       body: Center(
         child: SizedBox(
-          width: 220,
-          height: 48,
+          width: 240,
+          height: 52,
           child: ElevatedButton.icon(
             icon: const Icon(Icons.store),
             label: const Text('Magasin'),
@@ -21,7 +29,10 @@ class HomePage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => StoresPage(storeService: storeService),
+                  builder: (_) => StoresPage(
+                    storeService: storeService,
+                    productService: productService,
+                  ),
                 ),
               );
             },

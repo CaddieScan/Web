@@ -7,16 +7,17 @@ import '../services/store_service.dart';
 
 class AddStoreMapPage extends StatefulWidget {
   final StoreService storeService;
-  const AddStoreMapPage({super.key, required this.storeService});
+
+  const AddStoreMapPage({
+    super.key,
+    required this.storeService,
+  });
 
   @override
   State<AddStoreMapPage> createState() => _AddStoreMapPageState();
 }
 
 class _AddStoreMapPageState extends State<AddStoreMapPage> {
-  final MapController _mapController = MapController();
-
-  // centre par défaut (Paris)
   LatLng _center = const LatLng(48.8566, 2.3522);
 
   Future<void> _openCreateForm({LatLng? latLng}) async {
@@ -33,7 +34,7 @@ class _AddStoreMapPageState extends State<AddStoreMapPage> {
     try {
       await widget.storeService.addStore(created);
       if (!mounted) return;
-      Navigator.pop(context, true); // ✅ dit à StoresPage : refresh
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,14 +57,10 @@ class _AddStoreMapPageState extends State<AddStoreMapPage> {
         ],
       ),
       body: FlutterMap(
-        mapController: _mapController,
         options: MapOptions(
           center: _center,
           zoom: 13,
-          onTap: (tapPosition, latLng) {
-            // ✅ clic sur la map => ouvre formulaire pré-rempli
-            _openCreateForm(latLng: latLng);
-          },
+          onTap: (_, latLng) => _openCreateForm(latLng: latLng),
         ),
         children: [
           TileLayer(
@@ -80,10 +77,7 @@ class _CreateStoreDialog extends StatefulWidget {
   final double? initialLat;
   final double? initialLng;
 
-  const _CreateStoreDialog({
-    this.initialLat,
-    this.initialLng,
-  });
+  const _CreateStoreDialog({this.initialLat, this.initialLng});
 
   @override
   State<_CreateStoreDialog> createState() => _CreateStoreDialogState();
@@ -99,12 +93,8 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
   @override
   void initState() {
     super.initState();
-    _latCtrl = TextEditingController(
-      text: widget.initialLat?.toStringAsFixed(6) ?? '',
-    );
-    _lngCtrl = TextEditingController(
-      text: widget.initialLng?.toStringAsFixed(6) ?? '',
-    );
+    _latCtrl = TextEditingController(text: widget.initialLat?.toStringAsFixed(6) ?? '');
+    _lngCtrl = TextEditingController(text: widget.initialLng?.toStringAsFixed(6) ?? '');
   }
 
   @override
@@ -129,7 +119,6 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
       return;
     }
 
-    // id vide => sera généré par Mock / API
     Navigator.pop(context, Store(id: '', name: name, latitude: lat, longitude: lng));
   }
 
@@ -142,10 +131,7 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nom'),
-            ),
+            TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Nom')),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -173,14 +159,6 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
                 child: Text(_error!, style: const TextStyle(color: Colors.red)),
               ),
             ],
-            const SizedBox(height: 8),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Astuce: tu peux cliquer sur la map pour pré-remplir lat/lng.',
-                style: TextStyle(fontSize: 12),
-              ),
-            ),
           ],
         ),
       ),
