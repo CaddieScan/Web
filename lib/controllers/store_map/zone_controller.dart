@@ -1,20 +1,24 @@
 import 'dart:math';
-import 'dart:ui';
 
-import 'store_map_state.dart';
+import '../../../models/store_map_models.dart';
 import 'store_map_data.dart';
-import '../../models/store_map_models.dart';
+import 'store_map_state.dart';
 
 class ZoneController {
   final StoreMapState state;
   final StoreMapData data;
 
+  ZoneController(this.state, this.data);
+
+  // --- Drawing state
   bool isDrawing = false;
-  double? startX;
-  double? startY;
+  ZoneShape? drawingShape; // rect | circle
+  double? _startX;
+  double? _startY;
+
   StoreZone? previewZone;
 
-  // move/resize
+  // --- Transform state
   bool isMoving = false;
   bool isResizing = false;
   ResizeHandle? activeHandle;
@@ -22,11 +26,10 @@ class ZoneController {
   double _moveDx = 0;
   double _moveDy = 0;
 
-  double _startX = 0, _startY = 0, _startW = 0, _startH = 0;
-  double _startPointerX = 0, _startPointerY = 0;
+  double _origX = 0, _origY = 0, _origW = 0, _origH = 0;
+  double _pointerStartX = 0, _pointerStartY = 0;
 
-  ZoneController(this.state, this.data);
-
+  // --- Data access
   List<StoreZone> get zones => data.zonesByFloor[state.activeFloorId] ?? const [];
 
   StoreZone? zoneById(String id) {
@@ -36,100 +39,14 @@ class ZoneController {
     return null;
   }
 
+  // --- Hit tests
   StoreZone? hitTestZone(double x, double y) {
-    final z = zones.reversed.cast<StoreZone?>().firstWhere(
-          (zone) => zone != null && zone.contains(x, y),
-      orElse: () => null,
-    );
-    return z;
-  }
-
-  void startRect(double x, double y) {
-    final f = state.activeFloorId;
-    final c = state.activeCategoryId;
-    if (f == null || c == null) return;
-
-    cancelTransforms();
-    state.selectedZoneId = null;
-
-    isDrawing = true;
-    startX = state.snap(x);
-    startY = state.snap(y);
-
-    previewZone = StoreZone(
-      id: 'preview',
-      floorId: f,
-      name: '',
-      categoryId: c,
-      x: startX!,
-      y: startY!,
-      w: 0,
-      h: 0,
-    );
-  }
-
-  void updateRect(double x, double y) {
-    if (!isDrawing || previewZone == null) return;
-
-    final sx = startX ?? 0;
-    final sy = startY ?? 0;
-
-    final ex = state.snap(x);
-    final ey = state.snap(y);
-
-    final left = min(sx, ex);
-    final top = min(sy, ey);
-    final w = (sx - ex).abs();
-    final h = (sy - ey).abs();
-
-    previewZone!
-      ..x = left
-      ..y = top
-      ..w = w
-      ..h = h;
-  }
-
-  StoreZone? finishRect({required String zoneName, required String newId}) {
-    if (!isDrawing || previewZone == null) return null;
-
-    if (previewZone!.w < state.gridSize || previewZone!.h < state.gridSize) {
-      cancelDrawing();
-      return null;
+    // last drawn on top
+    for (int i = zones.length - 1; i >= 0; i--) {
+      final z = zones[i];
+      if (z.contains(x, y)) return z;
     }
-
-    final zone = StoreZone(
-      id: newId,
-      floorId: previewZone!.floorId,
-      name: zoneName,
-      categoryId: previewZone!.categoryId,
-      x: previewZone!.x,
-      y: previewZone!.y,
-      w: previewZone!.w,
-      h: previewZone!.h,
-    );
-
-    data.zonesByFloor[zone.floorId]!.add(zone);
-
-    cancelDrawing();
-    state.selectedZoneId = zone.id;
-    return zone;
-  }
-
-  void cancelDrawing() {
-    isDrawing = false;
-    startX = null;
-    startY = null;
-    previewZone = null;
-  }
-
-  // handles
-  List<(ResizeHandle, Offset)> getHandles(StoreZone z) {
-    return [
-      (ResizeHandle.tl, Offset(z.x, z.y)),
-      (ResizeHandle.tr, Offset(z.x + z.w, z.y)),
-      (ResizeHandle.bl, Offset(z.x, z.y + z.h)),
-      (ResizeHandle.br, Offset(z.x + z.w, z.y + z.h)),
-    ];
+    return null;
   }
 
   ResizeHandle? hitTestHandle({
@@ -138,21 +55,162 @@ class ZoneController {
     required double py,
     required double radiusWorld,
   }) {
-    for (final (h, p) in getHandles(z)) {
-      final dx = px - p.dx;
-      final dy = py - p.dy;
-      if (sqrt(dx * dx + dy * dy) <= radiusWorld) return h;
+    // Handles are on bounding box corners (works for rect & circle)
+    final corners = <(ResizeHandle, double, double)>[
+      (ResizeHandle.tl, z.x, z.y),
+      (ResizeHandle.tr, z.x + z.w, z.y),
+      (ResizeHandle.bl, z.x, z.y + z.h),
+      (ResizeHandle.br, z.x + z.w, z.y + z.h),
+    ];
+
+    for (final c in corners) {
+      final dx = px - c.$2;
+      final dy = py - c.$3;
+      if (sqrt(dx * dx + dy * dy) <= radiusWorld) return c.$1;
     }
     return null;
   }
 
-  // move
-  void startMove(StoreZone z, double px, double py) {
-    cancelDrawing();
-    isMoving = true;
+  // --- Hover
+  void updateHover(double x, double y) {
+    final z = hitTestZone(x, y);
+    state.hoveredZoneId = z?.id;
+  }
+
+  // --- Cancel helpers
+  void cancelDrawing() {
+    isDrawing = false;
+    drawingShape = null;
+    _startX = null;
+    _startY = null;
+    previewZone = null;
+  }
+
+  void cancelTransforms() {
+    isMoving = false;
     isResizing = false;
     activeHandle = null;
+  }
 
+  // ============================================================
+  // DRAW RECT
+  // ============================================================
+  void startRect(double x, double y) => _startShape(ZoneShape.rect, x, y);
+  void updateRect(double x, double y) => _updateShape(x, y);
+  StoreZone? finishRect({required String zoneName, required String newId}) =>
+      _finishShape(zoneName: zoneName, newId: newId);
+
+  // ============================================================
+  // DRAW CIRCLE
+  // ============================================================
+  void startCircle(double x, double y) => _startShape(ZoneShape.circle, x, y);
+  void updateCircle(double x, double y) => _updateShape(x, y);
+  StoreZone? finishCircle({required String zoneName, required String newId}) =>
+      _finishShape(zoneName: zoneName, newId: newId);
+
+  // ============================================================
+  // INTERNAL DRAW LOGIC
+  // ============================================================
+  void _startShape(ZoneShape shape, double x, double y) {
+    final floorId = state.activeFloorId;
+    final catId = state.activeCategoryId;
+    if (floorId == null || catId == null) return;
+
+    cancelTransforms();
+
+    isDrawing = true;
+    drawingShape = shape;
+
+    _startX = state.snap(x);
+    _startY = state.snap(y);
+
+    previewZone = StoreZone(
+      id: 'preview',
+      floorId: floorId,
+      name: '',
+      categoryId: catId,
+      x: _startX!,
+      y: _startY!,
+      w: 0,
+      h: 0,
+      shape: shape,
+    );
+  }
+
+  void _updateShape(double x, double y) {
+    if (!isDrawing || previewZone == null || _startX == null || _startY == null) return;
+
+    final sx = _startX!;
+    final sy = _startY!;
+    final ex = state.snap(x);
+    final ey = state.snap(y);
+
+    if (drawingShape == ZoneShape.rect) {
+      final left = min(sx, ex);
+      final top = min(sy, ey);
+      final w = (sx - ex).abs();
+      final h = (sy - ey).abs();
+
+      previewZone!
+        ..x = left
+        ..y = top
+        ..w = w
+        ..h = h
+        ..shape = ZoneShape.rect;
+      return;
+    }
+
+    // circle => bounding square
+    final left = min(sx, ex);
+    final top = min(sy, ey);
+    final wRaw = (sx - ex).abs();
+    final hRaw = (sy - ey).abs();
+    final size = max(wRaw, hRaw);
+
+    previewZone!
+      ..x = left
+      ..y = top
+      ..w = size
+      ..h = size
+      ..shape = ZoneShape.circle;
+  }
+
+  StoreZone? _finishShape({required String zoneName, required String newId}) {
+    if (!isDrawing || previewZone == null) return null;
+
+    final minSize = state.gridSize;
+    if (previewZone!.w < minSize || previewZone!.h < minSize) {
+      cancelDrawing();
+      return null;
+    }
+
+    final z = StoreZone(
+      id: newId,
+      floorId: previewZone!.floorId,
+      name: zoneName,
+      categoryId: previewZone!.categoryId,
+      x: previewZone!.x,
+      y: previewZone!.y,
+      w: previewZone!.w,
+      h: previewZone!.h,
+      shape: previewZone!.shape,
+    );
+
+    data.zonesByFloor[z.floorId]!.add(z);
+
+    cancelDrawing();
+    state.selectedZoneId = z.id;
+    return z;
+  }
+
+  // ============================================================
+  // MOVE / RESIZE
+  // ============================================================
+  void startMove(StoreZone z, double px, double py) {
+    cancelDrawing();
+    cancelTransforms();
+
+    isMoving = true;
     _moveDx = px - z.x;
     _moveDy = py - z.y;
   }
@@ -163,7 +221,7 @@ class ZoneController {
     final nx = state.snapToGrid ? state.snap(px - _moveDx) : (px - _moveDx);
     final ny = state.snapToGrid ? state.snap(py - _moveDy) : (py - _moveDy);
 
-    final changed = (nx != z.x) || (ny != z.y);
+    final changed = nx != z.x || ny != z.y;
     z.x = nx;
     z.y = ny;
     return changed;
@@ -171,56 +229,63 @@ class ZoneController {
 
   void finishMove() => isMoving = false;
 
-  // resize
   void startResize(StoreZone z, ResizeHandle handle, double px, double py) {
     cancelDrawing();
+    cancelTransforms();
+
     isResizing = true;
-    isMoving = false;
     activeHandle = handle;
 
-    _startX = z.x;
-    _startY = z.y;
-    _startW = z.w;
-    _startH = z.h;
+    _origX = z.x;
+    _origY = z.y;
+    _origW = z.w;
+    _origH = z.h;
 
-    _startPointerX = px;
-    _startPointerY = py;
+    _pointerStartX = px;
+    _pointerStartY = py;
   }
 
   bool updateResize(StoreZone z, double px, double py) {
     if (!isResizing || activeHandle == null) return false;
 
-    final dx = px - _startPointerX;
-    final dy = py - _startPointerY;
+    final dx = px - _pointerStartX;
+    final dy = py - _pointerStartY;
 
-    double x = _startX, y = _startY, w = _startW, h = _startH;
+    double x = _origX, y = _origY, w = _origW, h = _origH;
 
     switch (activeHandle!) {
       case ResizeHandle.tl:
-        x = _startX + dx;
-        y = _startY + dy;
-        w = _startW - dx;
-        h = _startH - dy;
+        x = _origX + dx;
+        y = _origY + dy;
+        w = _origW - dx;
+        h = _origH - dy;
         break;
       case ResizeHandle.tr:
-        y = _startY + dy;
-        w = _startW + dx;
-        h = _startH - dy;
+        y = _origY + dy;
+        w = _origW + dx;
+        h = _origH - dy;
         break;
       case ResizeHandle.bl:
-        x = _startX + dx;
-        w = _startW - dx;
-        h = _startH + dy;
+        x = _origX + dx;
+        w = _origW - dx;
+        h = _origH + dy;
         break;
       case ResizeHandle.br:
-        w = _startW + dx;
-        h = _startH + dy;
+        w = _origW + dx;
+        h = _origH + dy;
         break;
     }
 
     final minSize = state.gridSize;
-    if (w < minSize) w = minSize;
-    if (h < minSize) h = minSize;
+    w = max(w, minSize);
+    h = max(h, minSize);
+
+    // circle must stay square
+    if (z.shape == ZoneShape.circle) {
+      final size = max(w, h);
+      w = size;
+      h = size;
+    }
 
     if (state.snapToGrid) {
       x = state.snap(x);
@@ -229,7 +294,7 @@ class ZoneController {
       h = state.snap(h);
     }
 
-    final changed = (x != z.x) || (y != z.y) || (w != z.w) || (h != z.h);
+    final changed = x != z.x || y != z.y || w != z.w || h != z.h;
     z.x = x;
     z.y = y;
     z.w = w;
@@ -240,16 +305,5 @@ class ZoneController {
   void finishResize() {
     isResizing = false;
     activeHandle = null;
-  }
-
-  void cancelTransforms() {
-    isMoving = false;
-    isResizing = false;
-    activeHandle = null;
-  }
-
-  void updateHover(double x, double y) {
-    final z = hitTestZone(x, y);
-    state.hoveredZoneId = z?.id;
   }
 }

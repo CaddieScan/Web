@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../controllers/store_map/store_map_controller.dart';
+import '../models/store_map_models.dart';
 import '../models/store_poi_models.dart';
 
 class StoreMapPainter extends CustomPainter {
@@ -50,22 +52,26 @@ class StoreMapPainter extends CustomPainter {
   }
 
   void _drawWalls(Canvas canvas) {
-    final walls = ctrl.activeWalls;
+    final wallsList = ctrl.activeWalls;
 
-    final wallPaint = Paint()
-      ..color = Colors.black.withOpacity(0.65)
-      ..strokeWidth = 6
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    for (final poly in walls) {
+    for (int i = 0; i < wallsList.length; i++) {
+      final poly = wallsList[i];
       if (poly.length < 2) continue;
+
+      final isSelected = ctrl.selectedWallIndex == i;
+
+      final paint = Paint()
+        ..color = Colors.black.withOpacity(isSelected ? 0.85 : 0.65)
+        ..strokeWidth = isSelected ? 8 : 6
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
       final path = Path()..moveTo(poly.first.dx, poly.first.dy);
-      for (int i = 1; i < poly.length; i++) {
-        path.lineTo(poly[i].dx, poly[i].dy);
+      for (int j = 1; j < poly.length; j++) {
+        path.lineTo(poly[j].dx, poly[j].dy);
       }
-      canvas.drawPath(path, wallPaint);
+      canvas.drawPath(path, paint);
     }
 
     if (ctrl.isDrawingWall && ctrl.currentWall.isNotEmpty) {
@@ -93,24 +99,43 @@ class StoreMapPainter extends CustomPainter {
     final nodes = ctrl.activeAisleNodes;
     final edges = ctrl.activeAisleEdges;
 
-    final edgePaint = Paint()
-      ..color = Colors.blueGrey.withOpacity(0.75)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    for (final e in edges) {
+    // edges
+    for (int i = 0; i < edges.length; i++) {
+      final e = edges[i];
       if (e.a < 0 || e.a >= nodes.length) continue;
       if (e.b < 0 || e.b >= nodes.length) continue;
+
+      final isSelected = ctrl.selectedAisleEdgeIndex == i;
+
+      final edgePaint = Paint()
+        ..color = Colors.blueGrey.withOpacity(isSelected ? 0.95 : 0.75)
+        ..strokeWidth = isSelected ? 5 : 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
       canvas.drawLine(nodes[e.a], nodes[e.b], edgePaint);
     }
 
-    final nodeRadius = 4 / zoom;
-    final nodePaint = Paint()..color = Colors.blueGrey.withOpacity(0.9);
-    for (final n in nodes) {
-      canvas.drawCircle(n, nodeRadius, nodePaint);
+    // nodes
+    for (int i = 0; i < nodes.length; i++) {
+      final isSelected = ctrl.selectedAisleNodeIndex == i;
+      final r = (isSelected ? 7 : 4) / zoom;
+
+      final nodePaint = Paint()
+        ..color = Colors.blueGrey.withOpacity(isSelected ? 1.0 : 0.9);
+
+      canvas.drawCircle(nodes[i], r, nodePaint);
+
+      if (isSelected) {
+        final stroke = Paint()
+          ..color = Colors.black.withOpacity(0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2 / zoom;
+        canvas.drawCircle(nodes[i], r, stroke);
+      }
     }
 
+    // preview
     if (ctrl.isDrawingAisle && ctrl.lastAisleNodeIndex != null && ctrl.aislePreviewEnd != null) {
       final a = ctrl.lastAisleNodeIndex!;
       if (a >= 0 && a < nodes.length) {
@@ -140,19 +165,20 @@ class StoreMapPainter extends CustomPainter {
         ..strokeWidth = isSelected ? 3.5 : (isHover ? 3 : 2)
         ..style = PaintingStyle.stroke;
 
-      final rect = Rect.fromLTWH(z.x, z.y, z.w, z.h);
-
-      if (cat.cornerRadius <= 0) {
+      if (z.shape == ZoneShape.rect) {
+        final rect = Rect.fromLTWH(z.x, z.y, z.w, z.h);
         canvas.drawRect(rect, fill);
         canvas.drawRect(rect, stroke);
       } else {
-        final rr = RRect.fromRectAndRadius(rect, Radius.circular(cat.cornerRadius));
-        canvas.drawRRect(rr, fill);
-        canvas.drawRRect(rr, stroke);
+        final cx = z.x + z.w / 2;
+        final cy = z.y + z.h / 2;
+        final r = min(z.w, z.h) / 2;
+        canvas.drawCircle(Offset(cx, cy), r, fill);
+        canvas.drawCircle(Offset(cx, cy), r, stroke);
       }
 
-      // handles si sélection
       if (isSelected) {
+        // handles on bounding box (works for circle too)
         final handleWorld = 7 / zoom;
         final handleFill = Paint()..color = Colors.white;
         final handleStroke = Paint()
@@ -175,9 +201,9 @@ class StoreMapPainter extends CustomPainter {
       }
     }
 
-    // preview zone
+    // preview rect/circle
     final pz = ctrl.previewZone;
-    if (ctrl.isDrawingRect && pz != null) {
+    if ((ctrl.isDrawingRect || ctrl.isDrawingCircle) && pz != null) {
       final cat = ctrl.categoryById(pz.categoryId);
 
       final fill = Paint()
@@ -189,15 +215,16 @@ class StoreMapPainter extends CustomPainter {
         ..strokeWidth = 2
         ..style = PaintingStyle.stroke;
 
-      final rect = Rect.fromLTWH(pz.x, pz.y, pz.w, pz.h);
-
-      if (cat.cornerRadius <= 0) {
+      if (pz.shape == ZoneShape.rect) {
+        final rect = Rect.fromLTWH(pz.x, pz.y, pz.w, pz.h);
         canvas.drawRect(rect, fill);
         canvas.drawRect(rect, stroke);
       } else {
-        final rr = RRect.fromRectAndRadius(rect, Radius.circular(cat.cornerRadius));
-        canvas.drawRRect(rr, fill);
-        canvas.drawRRect(rr, stroke);
+        final cx = pz.x + pz.w / 2;
+        final cy = pz.y + pz.h / 2;
+        final r = min(pz.w, pz.h) / 2;
+        canvas.drawCircle(Offset(cx, cy), r, fill);
+        canvas.drawCircle(Offset(cx, cy), r, stroke);
       }
     }
   }
@@ -228,11 +255,7 @@ class StoreMapPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: text,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 14 / zoom,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: Colors.white, fontSize: 14 / zoom, fontWeight: FontWeight.w700),
         ),
         textDirection: TextDirection.ltr,
       )..layout();

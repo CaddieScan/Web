@@ -26,42 +26,29 @@ class StoreMapCanvas extends StatefulWidget {
 }
 
 class _StoreMapCanvasState extends State<StoreMapCanvas> {
-  // camera
   double zoom = 1.0;
   Offset pan = Offset.zero;
 
-  // hover tooltip
   String? hoverText;
   Offset? hoverPos;
 
-  // middle pan
   bool isMiddlePanning = false;
   Offset? lastPanPos;
 
-  // drag tracking
   bool didDrag = false;
 
   StoreMapController get ctrl => widget.ctrl;
 
   Offset screenToWorld(Offset screen) => (screen - pan) / zoom;
 
-  Future<void> promptCreateZone() async {
-    final zoneName = await showDialog<String>(
+  Future<String?> _promptZoneName() async {
+    return showDialog<String>(
       context: context,
       builder: (_) => const TextPromptDialog(
         title: 'Nom de la zone',
         hint: 'Ex: Produits laitiers',
       ),
     );
-
-    if (zoneName == null || zoneName.trim().isEmpty) {
-      setState(() => ctrl.cancelDrawing());
-      widget.onChanged();
-      return;
-    }
-
-    setState(() => ctrl.finishRect(zoneName: zoneName.trim()));
-    widget.onChanged();
   }
 
   void _openZonePopupIfAny(Offset localPos) {
@@ -91,12 +78,10 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
         context: context,
         builder: (_) => CheckoutPoiDialog(poi: p),
       );
-
       if (ok == true) widget.onChanged();
       return;
     }
 
-    // Entry/Exit simple popup
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
@@ -110,6 +95,7 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
   }
 
   void onPointerDown(PointerDownEvent e) {
+    // middle click => pan
     if (e.buttons == kMiddleMouseButton) {
       setState(() {
         isMiddlePanning = true;
@@ -120,7 +106,7 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
 
     final world = screenToWorld(e.localPosition);
 
-    // --- placement POI
+    // --- place POI
     if (ctrl.tool == EditorTool.placeEntry) {
       setState(() => ctrl.placePoi(PoiType.entry, world));
       widget.onChanged();
@@ -137,31 +123,38 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
       return;
     }
 
-    // --- draw rect
+    // --- draw RECT
     if (ctrl.tool == EditorTool.drawRect) {
       setState(() => ctrl.startRect(world.dx, world.dy));
       widget.onChanged();
       return;
     }
 
-    // --- draw wall
+    // --- draw CIRCLE
+    if (ctrl.tool == EditorTool.drawCircle) {
+      setState(() => ctrl.startCircle(world.dx, world.dy));
+      widget.onChanged();
+      return;
+    }
+
+    // --- draw WALL
     if (ctrl.tool == EditorTool.drawWall) {
       setState(() => ctrl.startWallPoint(world));
       widget.onChanged();
       return;
     }
 
-    // --- draw aisle
+    // --- draw AISLE
     if (ctrl.tool == EditorTool.drawAisle) {
       setState(() => ctrl.startAislePoint(world));
       widget.onChanged();
       return;
     }
 
-    // --- select mode
+    // --- SELECT mode
     didDrag = false;
 
-    // POI first
+    // 1) POI first
     final poi = ctrl.hitTestPoi(world.dx, world.dy);
     if (poi != null) {
       setState(() => ctrl.selectPoi(poi.id));
@@ -172,7 +165,48 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
       return;
     }
 
-    // then zones
+    // 2) NEW: walls/aisles selection by click (only in select tool)
+    if (ctrl.tool == EditorTool.select) {
+      final wallIdx = ctrl.hitTestWallIndex(world, thresholdWorld: 8 / zoom);
+      if (wallIdx != null) {
+        setState(() => ctrl.selectWall(wallIdx));
+        widget.onChanged();
+        return;
+      }
+
+      final nodeIdx = ctrl.hitTestAisleNodeIndex(world, radiusWorld: 10 / zoom);
+      if (nodeIdx != null) {
+        setState(() => ctrl.selectAisleNode(nodeIdx));
+        widget.onChanged();
+        return;
+      }
+
+      final edgeIdx = ctrl.hitTestAisleEdgeIndex(world, thresholdWorld: 8 / zoom);
+      if (edgeIdx != null) {
+        setState(() => ctrl.selectAisleEdge(edgeIdx));
+        widget.onChanged();
+        return;
+      }
+    }
+
+    // 3) IMPORTANT: handle test on currently selected zone first (for circle handles)
+    final selected = ctrl.selectedZone;
+    if (selected != null) {
+      final handleRadiusWorld = 10 / zoom;
+      final handle = ctrl.hitTestHandle(
+        z: selected,
+        px: world.dx,
+        py: world.dy,
+        radiusWorld: handleRadiusWorld,
+      );
+      if (handle != null) {
+        setState(() => ctrl.startResize(selected, handle, world.dx, world.dy));
+        widget.onChanged();
+        return;
+      }
+    }
+
+    // 4) zones
     final z = ctrl.hitTestZone(world.dx, world.dy);
     if (z == null) {
       setState(() => ctrl.clearSelection());
@@ -190,7 +224,6 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
       py: world.dy,
       radiusWorld: handleRadiusWorld,
     );
-
     if (handle != null) {
       setState(() => ctrl.startResize(z, handle, world.dx, world.dy));
       widget.onChanged();
@@ -214,7 +247,7 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
 
     final world = screenToWorld(e.localPosition);
 
-    // preview wall/aisle
+    // previews wall/aisle
     if (ctrl.tool == EditorTool.drawWall && ctrl.isDrawingWall) {
       setState(() => ctrl.updateWallPreview(world));
       widget.onChanged();
@@ -226,9 +259,14 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
       return;
     }
 
-    // drawing zone
+    // drawing rect/circle
     if (ctrl.isDrawingRect) {
       setState(() => ctrl.updateRect(world.dx, world.dy));
+      widget.onChanged();
+      return;
+    }
+    if (ctrl.isDrawingCircle) {
+      setState(() => ctrl.updateCircle(world.dx, world.dy));
       widget.onChanged();
       return;
     }
@@ -275,11 +313,19 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
       return;
     }
 
+    // finish RECT
     if (ctrl.tool == EditorTool.drawRect && ctrl.isDrawingRect) {
       if (ctrl.previewZone != null &&
           ctrl.previewZone!.w >= ctrl.gridSize &&
           ctrl.previewZone!.h >= ctrl.gridSize) {
-        await promptCreateZone();
+        final name = await _promptZoneName();
+        if (name == null || name.trim().isEmpty) {
+          setState(() => ctrl.cancelDrawing());
+          widget.onChanged();
+          return;
+        }
+        setState(() => ctrl.finishRect(zoneName: name.trim()));
+        widget.onChanged();
       } else {
         setState(() => ctrl.cancelDrawing());
         widget.onChanged();
@@ -287,11 +333,33 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
       return;
     }
 
+    // finish CIRCLE
+    if (ctrl.tool == EditorTool.drawCircle && ctrl.isDrawingCircle) {
+      if (ctrl.previewZone != null &&
+          ctrl.previewZone!.w >= ctrl.gridSize &&
+          ctrl.previewZone!.h >= ctrl.gridSize) {
+        final name = await _promptZoneName();
+        if (name == null || name.trim().isEmpty) {
+          setState(() => ctrl.cancelDrawing());
+          widget.onChanged();
+          return;
+        }
+        setState(() => ctrl.finishCircle(zoneName: name.trim()));
+        widget.onChanged();
+      } else {
+        setState(() => ctrl.cancelDrawing());
+        widget.onChanged();
+      }
+      return;
+    }
+
+    // finish move POI
     if (ctrl.isMovingPoi) {
       setState(() => ctrl.finishMovePoi());
       widget.onChanged();
     }
 
+    // finish move/resize zones
     if (ctrl.isMoving) {
       setState(() => ctrl.finishMove());
       widget.onChanged();
@@ -326,7 +394,6 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
     setState(() {
       ctrl.updateHover(world.dx, world.dy);
 
-      // tooltip POI
       final hp = ctrl.hoveredPoiId == null ? null : ctrl.poiById(ctrl.hoveredPoiId!);
       if (hp != null) {
         hoverText = _poiTooltip(hp);
@@ -334,7 +401,6 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
         return;
       }
 
-      // tooltip zone
       final hz = ctrl.hoveredZoneId == null ? null : ctrl.zoneById(ctrl.hoveredZoneId!);
       if (hz != null) {
         hoverText = '${hz.name} • ${ctrl.categoryById(hz.categoryId).name}';
@@ -350,7 +416,6 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
     if (p.type == PoiType.entry) return 'Entree';
     if (p.type == PoiType.exit) return 'Sortie';
 
-    // checkout
     final kind = p.checkoutKind == CheckoutKind.selfCheckout ? 'Auto' : 'Caissiere';
     final pay = p.paymentMode == PaymentMode.cardOnly ? 'CB' : 'CB+€';
     final pmr = p.isAccessible ? ' • PMR' : '';
@@ -374,7 +439,6 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
             onDoubleTapDown: (details) {
               if (ctrl.tool == EditorTool.select) {
                 if (!didDrag) {
-                  // POI priorité
                   _openPoiPopupIfAny(details.localPosition);
                   _openZonePopupIfAny(details.localPosition);
                 }
@@ -406,8 +470,8 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
 
         if (hoverText != null && hoverPos != null)
           StoreMapTooltip(
-            left: 320 + hoverPos!.dx + 12,
-            top: 56 + hoverPos!.dy + 12,
+            left: hoverPos!.dx + 12,
+            top: hoverPos!.dy + 12,
             text: hoverText!,
           ),
       ],

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
 
 enum EditorTool {
   select,
   drawRect,
+  drawCircle,
   drawWall,
   drawAisle,
   placeEntry,
@@ -13,26 +14,47 @@ enum EditorTool {
 enum ResizeHandle { tl, tr, bl, br }
 
 class StoreMapState {
-  EditorTool tool = EditorTool.drawRect;
-
-  double gridSize = 20;
-  bool snapToGrid = true;
+  EditorTool tool = EditorTool.select;
 
   String? activeFloorId;
   String? activeCategoryId;
 
-  // Hover/selection zones
-  String? hoveredZoneId;
   String? selectedZoneId;
+  String? hoveredZoneId;
 
-  // Hover/selection POI
-  String? hoveredPoiId;
   String? selectedPoiId;
+  String? hoveredPoiId;
 
-  double snap(double v) {
-    if (!snapToGrid) return v;
-    return (v / gridSize).roundToDouble() * gridSize;
-  }
+  // ✅ NEW selections
+  int? selectedWallIndex;        // index dans wallsByFloor[floor]
+  int? selectedAisleNodeIndex;   // index dans nodes
+  int? selectedAisleEdgeIndex;   // index dans edges
+
+  bool snapToGrid = true;
+  double gridSize = 20;
+
+  double snap(double v) => (v / gridSize).round() * gridSize;
 
   Offset snapOffset(Offset p) => Offset(snap(p.dx), snap(p.dy));
+
+  StoreMapState deepCopy() {
+    final s = StoreMapState();
+    s.tool = tool;
+    s.activeFloorId = activeFloorId;
+    s.activeCategoryId = activeCategoryId;
+
+    s.selectedZoneId = selectedZoneId;
+    s.hoveredZoneId = hoveredZoneId;
+
+    s.selectedPoiId = selectedPoiId;
+    s.hoveredPoiId = hoveredPoiId;
+
+    s.selectedWallIndex = selectedWallIndex;
+    s.selectedAisleNodeIndex = selectedAisleNodeIndex;
+    s.selectedAisleEdgeIndex = selectedAisleEdgeIndex;
+
+    s.snapToGrid = snapToGrid;
+    s.gridSize = gridSize;
+    return s;
+  }
 }
