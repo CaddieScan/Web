@@ -234,6 +234,13 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
     widget.onChanged();
   }
 
+  void _openPopupOnRightClick(Offset localPos) {
+    _openPoiPopupIfAny(localPos);
+
+    _openZonePopupIfAny(localPos);
+  }
+
+
   void onPointerMove(PointerMoveEvent e) {
     if (isMiddlePanning && lastPanPos != null) {
       final delta = e.localPosition - lastPanPos!;
@@ -436,14 +443,15 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
           }),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
+
+            // ✅ CLIC DROIT : ouvrir popup (zones + POI)
+            onSecondaryTapDown: (details) {
+              if (ctrl.tool != EditorTool.select) return;
+              _openPopupOnRightClick(details.localPosition);
+            },
+
+            // ✅ DOUBLE CLIC : on le garde uniquement pour murs / allées
             onDoubleTapDown: (details) {
-              if (ctrl.tool == EditorTool.select) {
-                if (!didDrag) {
-                  _openPoiPopupIfAny(details.localPosition);
-                  _openZonePopupIfAny(details.localPosition);
-                }
-                return;
-              }
               if (ctrl.tool == EditorTool.drawWall) {
                 setState(() => ctrl.finishWall());
                 widget.onChanged();
@@ -454,7 +462,10 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
                 widget.onChanged();
                 return;
               }
+
+
             },
+
             child: Listener(
               onPointerDown: onPointerDown,
               onPointerMove: onPointerMove,
@@ -466,6 +477,7 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
               ),
             ),
           ),
+
         ),
 
         if (hoverText != null && hoverPos != null)

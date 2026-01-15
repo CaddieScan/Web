@@ -25,9 +25,11 @@ class StoreMapToolbar extends StatelessWidget {
     final selected = [
       ctrl.tool == EditorTool.select,
       ctrl.tool == EditorTool.drawRect,
-      ctrl.tool == EditorTool.drawCircle, // ✅
+      ctrl.tool == EditorTool.drawCircle,
       ctrl.tool == EditorTool.drawWall,
+
       ctrl.tool == EditorTool.drawAisle,
+
       ctrl.tool == EditorTool.placeEntry,
       ctrl.tool == EditorTool.placeExit,
       ctrl.tool == EditorTool.placeCheckout,
