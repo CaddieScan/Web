@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/store_poi_models.dart';
 
+// sert à configurer les points de caisse et leurs options genre type de caisse, paiement, handicaper, etc
+// en gros un formulaire
+
 class CheckoutPoiDialog extends StatefulWidget {
   final StorePoi poi;
 

@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import '../models/store.dart';
 import 'store_repository.dart';
 
+// sert à faire le lien entre l'api et le reste de l'app, c'est lui qui va faire les requetes http et convertir les données en objets Store
+
 class ApiStoreRepository implements StoreRepository {
   final String baseUrl; // faut mettre la vrai url quand on le saura
   final http.Client _client;

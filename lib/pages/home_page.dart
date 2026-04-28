@@ -4,6 +4,8 @@ import '../services/store_service.dart';
 import '../services/product_service.dart';
 import 'stores_page.dart';
 
+// page d'accueil pour choisir entre les différentes fonctionnalités
+
 class HomePage extends StatelessWidget {
   final StoreService storeService;
   final ProductService productService;

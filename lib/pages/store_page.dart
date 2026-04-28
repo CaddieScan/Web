@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/store.dart';
 import '../services/product_service.dart';
-import '../controllers/store_map/store_map_controller.dart'; // ✅ add
+import '../controllers/store_map/store_map_controller.dart';
 import 'products_page.dart';
 import 'store_map_editor_page.dart';
 
@@ -23,7 +23,7 @@ class StorePage extends StatefulWidget {
 class _StorePageState extends State<StorePage> {
   int _index = 0;
 
-  late final StoreMapController _mapCtrl; // ✅ keep map state per store
+  late final StoreMapController _mapCtrl;
 
   @override
   void initState() {
@@ -35,10 +35,7 @@ class _StorePageState extends State<StorePage> {
   Widget build(BuildContext context) {
     final pages = [
       ProductsPage(store: widget.store, productService: widget.productService),
-      StoreMapEditorPage(
-        ctrl: _mapCtrl,
-        storeName: widget.store.name,
-      ),
+      StoreMapEditorPage(ctrl: _mapCtrl, storeName: widget.store.name),
     ];
 
     return Scaffold(

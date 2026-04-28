@@ -5,6 +5,8 @@ import '../../models/store_poi_models.dart';
 import 'store_map_data.dart';
 import 'store_map_state.dart';
 
+// ici on controle les POI qui sont : les entrée, sortie, caisse, etc... on les modélise avec des points avec un type et un label
+
 class PoiController {
   final StoreMapState state;
   final StoreMapData data;

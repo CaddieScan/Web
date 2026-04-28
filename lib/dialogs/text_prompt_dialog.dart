@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// Un dialog simple pour demander une saisie textuelle à l'utilisateur
+// pour par exemple renommer une catégorie ou un étage, ou créer une nouvelle catégorie avec un nom donné
+
 class TextPromptDialog extends StatefulWidget {
   final String title;
   final String hint;

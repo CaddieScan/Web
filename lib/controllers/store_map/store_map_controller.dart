@@ -11,6 +11,9 @@ import 'poi_controller.dart';
 import 'zone_controller.dart';
 import 'undo/undo_manager.dart';
 
+// sert à centraliser les différentes parties du state, des datas et des controllers et fait le lien
+// entre eux, c'est l'épicentre des maux de tête
+
 class StoreMapController {
   StoreMapState state = StoreMapState();
   StoreMapData data = StoreMapData();

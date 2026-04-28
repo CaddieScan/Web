@@ -25,7 +25,7 @@ class _StoresPageState extends State<StoresPage> {
   List<Store> _stores = [];
   String? _error;
 
-  // ✅ recherche
+  // recherche
   String _search = '';
 
   @override
@@ -61,7 +61,7 @@ class _StoresPageState extends State<StoresPage> {
     }
   }
 
-  // ✅ liste filtrée
+  // liste filtree
   List<Store> get _filteredStores {
     final q = _search.trim().toLowerCase();
     if (q.isEmpty) return _stores;
@@ -99,7 +99,7 @@ class _StoresPageState extends State<StoresPage> {
           ? Center(child: Text('Erreur: $_error'))
           : Column(
         children: [
-          // ✅ barre de recherche
+          // barre de recherche
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
@@ -116,7 +116,7 @@ class _StoresPageState extends State<StoresPage> {
 
           const Divider(height: 1),
 
-          // ✅ liste
+          // liste
           Expanded(
             child: stores.isEmpty
                 ? const Center(child: Text('Aucun magasin trouvé'))

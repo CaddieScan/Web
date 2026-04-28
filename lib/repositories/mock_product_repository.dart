@@ -1,6 +1,8 @@
 import '../models/product.dart';
 import 'product_repository.dart';
 
+// Un repository qui stocke les produits en mémoire, avec des données pré-remplies pour 3 magasins fictifs
+
 class MockProductRepository implements ProductRepository {
   static const String _placeholderImg = 'images/product_placeholder.png';
 

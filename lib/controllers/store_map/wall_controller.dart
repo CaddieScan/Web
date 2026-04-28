@@ -3,6 +3,10 @@ import 'dart:ui';
 import 'store_map_data.dart';
 import 'store_map_state.dart';
 
+// sert à controler les murs qui sont modélisés (qui sont simplement une liste de point)
+// pour l'instant on fait que des murs droits, mais on peut facilement faire des murs courbes
+// en ajoutant des points intermédiaires ou des ratio de courbure
+
 class WallController {
   final StoreMapState state;
   final StoreMapData data;

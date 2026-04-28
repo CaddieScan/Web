@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../controllers/store_map/store_map_controller.dart';
 import '../../controllers/store_map/store_map_state.dart';
 
+// ce widget affiche la barre d'outils pour choisir entre les différents outils d'édition du plan du magasin
+
 class StoreMapToolbar extends StatelessWidget {
   final StoreMapController ctrl;
   final String storeName;
@@ -55,7 +57,7 @@ class StoreMapToolbar extends StatelessWidget {
                   _toggle(EditorTool.drawRect);
                   break;
                 case 2:
-                  _toggle(EditorTool.drawCircle); // ✅
+                  _toggle(EditorTool.drawCircle);
                   break;
                 case 3:
                   _toggle(EditorTool.drawWall);

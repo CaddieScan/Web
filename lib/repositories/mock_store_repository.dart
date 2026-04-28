@@ -1,6 +1,8 @@
 import '../models/store.dart';
 import 'store_repository.dart';
 
+// Un repository de test avec des données en mémoire, pour pouvoir tester l'app sans avoir à se connecter à une vraie API
+
 class MockStoreRepository implements StoreRepository {
   final List<Store> _stores = [
     const Store(id: '1', name: 'Carrefour Centre', latitude: 48.8566, longitude: 2.3522),

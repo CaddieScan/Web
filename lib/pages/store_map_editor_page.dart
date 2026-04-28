@@ -48,7 +48,7 @@ class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
     super.initState();
     _focusNode = FocusNode(debugLabel: 'StoreMapEditorFocus');
 
-    // ✅ IMPORTANT: request focus after first frame (web needs it)
+    // IMPORTANT: request focus after first frame (web needs it)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
     });
@@ -102,7 +102,7 @@ class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
           autofocus: true,
           onKeyEvent: (_, __) => KeyEventResult.ignored,
           child: GestureDetector(
-            // ✅ Click anywhere gives focus back (super important on web)
+            // Click anywhere gives focus back (super important on web)
             behavior: HitTestBehavior.opaque,
             onTap: () => _focusNode.requestFocus(),
             child: Scaffold(
@@ -122,7 +122,7 @@ class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
                             children: [
                               StoreMapCanvas(ctrl: ctrl, onChanged: _refresh),
 
-                              // ✅ DEBUG (tu peux supprimer après)
+                              // DEBUG (tu peux supprimer apres)
                               Positioned(
                                 left: 12,
                                 bottom: 12,

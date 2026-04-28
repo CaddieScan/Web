@@ -1,5 +1,7 @@
 import '../models/store.dart';
 
+// interface pour accéder aux magasins
+
 abstract class StoreRepository {
   Future<List<Store>> getStores();
   Future<Store?> getStoreById(String id);

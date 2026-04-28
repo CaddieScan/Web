@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+// sert à géré les outils qui sont utilisés pour la carte interactif
+
 enum EditorTool {
   select,
   drawRect,
@@ -25,7 +27,7 @@ class StoreMapState {
   String? selectedPoiId;
   String? hoveredPoiId;
 
-  // ✅ NEW selections
+  // NEW selections
   int? selectedWallIndex;        // index dans wallsByFloor[floor]
   int? selectedAisleNodeIndex;   // index dans nodes
   int? selectedAisleEdgeIndex;   // index dans edges

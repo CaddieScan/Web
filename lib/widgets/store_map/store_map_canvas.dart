@@ -11,6 +11,8 @@ import '../../models/store_poi_models.dart';
 import '../../painters/store_map_painter.dart';
 import 'store_map_tooltip.dart';
 
+// Ce widget gère la zone de dessin du plan du magasin, les interactions de base (pan, zoom, clic) et affiche les infobulles au survol
+
 class StoreMapCanvas extends StatefulWidget {
   final StoreMapController ctrl;
   final VoidCallback onChanged;
@@ -444,13 +446,13 @@ class _StoreMapCanvasState extends State<StoreMapCanvas> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
 
-            // ✅ CLIC DROIT : ouvrir popup (zones + POI)
+            // CLIC DROIT : ouvrir popup (zones + POI)
             onSecondaryTapDown: (details) {
               if (ctrl.tool != EditorTool.select) return;
               _openPopupOnRightClick(details.localPosition);
             },
 
-            // ✅ DOUBLE CLIC : on le garde uniquement pour murs / allées
+            // DOUBLE CLIC : on le garde uniquement pour murs / allees
             onDoubleTapDown: (details) {
               if (ctrl.tool == EditorTool.drawWall) {
                 setState(() => ctrl.finishWall());

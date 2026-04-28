@@ -1,6 +1,9 @@
 import '../models/product.dart';
 import '../repositories/product_repository.dart';
 
+// sert à faire le lien entre le repository et le reste de l'app, c'est lui qui va faire les appels au repository et éventuellement faire du traitement sur les données avant de les renvoyer aux pages
+
+
 class ProductService {
   final ProductRepository repo;
   ProductService(this.repo);

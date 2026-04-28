@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// un widget pour afficher une tooltip personnalisée sur le plan du magasin
+// par exemple pour afficher le nom d'une zone ou d'un point d'intérêt lorsque l'utilisateur clique dessus
+
 class StoreMapTooltip extends StatelessWidget {
   final String text;
   final double left;

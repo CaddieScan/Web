@@ -1,37 +1,31 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:caddiescan_web/repositories/mock_product_repository.dart';
 import 'package:caddiescan_web/repositories/mock_store_repository.dart';
+import 'package:caddiescan_web/pages/home_page.dart';
+import 'package:caddiescan_web/services/product_service.dart';
+import 'package:caddiescan_web/services/store_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/services/store_service.dart';
-
-import 'package:caddiescan_web/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    final repo = MockStoreRepository();
+  testWidgets('HomePage affiche le bouton d entree magasin', (
+    WidgetTester tester,
+  ) async {
+    // Quoi: verifier que l'ecran d'accueil principal se construit correctement et qu'on as bien les pages d'entrée
+    // Comment: on construit la page d'accueil avec un services de mock et on cherche les textes clés à l'écran
+    // Pourquoi: ce test detecte les champs manquant ou autre pour tester le front
+    final storeService = StoreService(MockStoreRepository());
+    final productService = ProductService(MockProductRepository());
 
-    final storeService = StoreService(repo);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          storeService: storeService,
+          productService: productService,
+        ),
+      ),
+    );
 
-
-    await tester.pumpWidget(const MyApp(storeService: storeService));
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Magasin'), findsOneWidget);
   });
 }

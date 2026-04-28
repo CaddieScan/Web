@@ -32,10 +32,7 @@ class LoginPage extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      'images/img.png',
-                      fit: BoxFit.cover,
-                    ),
+                  child: Image.asset('images/img.png', fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(height: 40),
@@ -64,7 +61,10 @@ class LoginPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text('Connexion', style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    'Connexion',
+                    style: TextStyle(fontSize: 18),
+                  ),
                 ),
               ),
             ],

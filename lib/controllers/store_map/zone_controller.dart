@@ -4,6 +4,9 @@ import '../../../models/store_map_models.dart';
 import 'store_map_data.dart';
 import 'store_map_state.dart';
 
+// sert à controler les zones qui sont : les rayons, les zones de promo et les modéliser en rectangle ou cercle
+// on gere aussi les hovers et intéraction clique pour selectionner, déplacer et redimensionner
+
 class ZoneController {
   final StoreMapState state;
   final StoreMapData data;

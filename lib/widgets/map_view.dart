@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/store.dart';
 
+// widget pour afficher la carte avec les magasins et permettre de sélectionner un magasin en cliquant dessus
+
 class MapView extends StatelessWidget {
   final List<Store> stores;
   final Store? selectedStore;

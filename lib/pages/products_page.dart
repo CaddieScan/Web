@@ -8,6 +8,8 @@ import '../models/product.dart';
 import '../models/store.dart';
 import '../services/product_service.dart';
 
+// Page de gestion des produits d'un magasin
+
 class ProductsPage extends StatefulWidget {
   final Store store;
   final ProductService productService;

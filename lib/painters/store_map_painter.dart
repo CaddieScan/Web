@@ -1,11 +1,11 @@
 import 'dart:math';
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
-
 import '../controllers/store_map/store_map_controller.dart';
 import '../models/store_map_models.dart';
 import '../models/store_poi_models.dart';
+
+// sert à dessiner le plan du magasin, les murs, les zones, les allées et les points d'intérêt
 
 class StoreMapPainter extends CustomPainter {
   final StoreMapController ctrl;

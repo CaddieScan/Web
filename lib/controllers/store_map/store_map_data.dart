@@ -4,6 +4,10 @@ import '../../models/store_map_models.dart';
 import '../../models/store_poi_models.dart';
 import 'aisle_controller.dart';
 
+// ici on stock toutes les données des zones, murs, rayons, POI,
+// gros conteneur de données pour éviter d'avoir des données éparpillées dans les différents controllers,
+// et pour faciliter la sauvegarde / chargement / export / import
+
 class StoreMapData {
   final List<StoreFloor> floors = [];
   final List<StoreCategory> categories = [];

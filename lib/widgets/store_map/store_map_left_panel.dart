@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../controllers/store_map/store_map_controller.dart';
 import '../../dialogs/text_prompt_dialog.dart';
 
+// ce widget affiche la liste des étages et des catégories, et permet de les ajouter, renommer, supprimer
+
 class StoreMapLeftPanel extends StatelessWidget {
   final StoreMapController ctrl;
   final VoidCallback onChanged;

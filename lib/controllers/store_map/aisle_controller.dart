@@ -3,6 +3,9 @@ import 'dart:ui';
 import 'store_map_data.dart';
 import 'store_map_state.dart';
 
+
+// Aisle = couloir entre les rayons => on les modélise par des segments entre des points
+
 class AisleEdge {
   final int a;
   final int b;

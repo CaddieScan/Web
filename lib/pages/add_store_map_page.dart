@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import '../models/store.dart';
 import '../services/store_service.dart';
 
+// page de création de magasin via une carte (tap pour ajouter un magasin à l'emplacement tapé, ou bouton pour saisie manuelle)
+
 class AddStoreMapPage extends StatefulWidget {
   final StoreService storeService;
 
