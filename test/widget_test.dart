@@ -1,7 +1,9 @@
 import 'package:caddiescan_web/repositories/mock_product_repository.dart';
+import 'package:caddiescan_web/repositories/mock_store_map_repository.dart';
 import 'package:caddiescan_web/repositories/mock_store_repository.dart';
 import 'package:caddiescan_web/pages/home_page.dart';
 import 'package:caddiescan_web/services/product_service.dart';
+import 'package:caddiescan_web/services/store_map_service.dart';
 import 'package:caddiescan_web/services/store_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,12 +17,14 @@ void main() {
     // Pourquoi: ce test detecte les champs manquant ou autre pour tester le front
     final storeService = StoreService(MockStoreRepository());
     final productService = ProductService(MockProductRepository());
+    final storeMapService = StoreMapService(MockStoreMapRepository());
 
     await tester.pumpWidget(
       MaterialApp(
         home: HomePage(
           storeService: storeService,
           productService: productService,
+          storeMapService: storeMapService,
         ),
       ),
     );

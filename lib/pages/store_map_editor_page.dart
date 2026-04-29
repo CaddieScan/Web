@@ -17,11 +17,13 @@ class DeleteIntentX extends Intent {
 class StoreMapEditorPage extends StatefulWidget {
   final StoreMapController ctrl;
   final String storeName;
+  final Future<void> Function()? onSave;
 
   const StoreMapEditorPage({
     super.key,
     required this.ctrl,
     required this.storeName,
+    this.onSave,
   });
 
   @override
@@ -72,12 +74,6 @@ class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
-          UndoIntent: CallbackAction<UndoIntent>(
-            onInvoke: (_) {
-              setState(() => ctrl.undo());
-              return null;
-            },
-          ),
           DeleteIntentX: CallbackAction<DeleteIntentX>(
             onInvoke: (_) {
               if (_isTypingInTextField()) return null;
@@ -112,6 +108,7 @@ class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
                     ctrl: ctrl,
                     storeName: widget.storeName,
                     onChanged: _refresh,
+                    onSave: widget.onSave,
                   ),
                   Expanded(
                     child: Row(

@@ -30,7 +30,10 @@ class StoreMapController {
   StoreMapController() {
     _rebindControllers();
 
-    // init default floor
+    _initDefaults();
+  }
+
+  void _initDefaults() {
     final floor = StoreFloor(id: _newId('floor'), name: 'RDC', order: 0);
     data.floors.add(floor);
     data.ensureFloor(floor.id);
@@ -45,6 +48,28 @@ class StoreMapController {
     data.categories.add(cat);
     state.activeCategoryId = cat.id;
   }
+
+  void loadData(StoreMapData nextData) {
+    data = nextData;
+    state = StoreMapState();
+
+    if (data.floors.isEmpty || data.categories.isEmpty) {
+      data = StoreMapData();
+      _initDefaults();
+    } else {
+      for (final floor in data.floors) {
+        data.ensureFloor(floor.id);
+      }
+      data.floors.sort((a, b) => a.order.compareTo(b.order));
+      state.activeFloorId = data.floors.first.id;
+      state.activeCategoryId = data.categories.first.id;
+    }
+
+    undoManager.clear();
+    _rebindControllers();
+  }
+
+  StoreMapData exportData() => data.deepCopy();
 
   void _rebindControllers() {
     zones = ZoneController(state, data);

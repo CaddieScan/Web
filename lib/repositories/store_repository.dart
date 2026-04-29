@@ -7,5 +7,6 @@ abstract class StoreRepository {
   Future<Store?> getStoreById(String id);
 
   Future<Store> createStore(Store store);
+  Future<Store> updateStore(Store store);
   Future<void> deleteStore(String id);
 }

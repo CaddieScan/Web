@@ -9,6 +9,9 @@ class ProductService {
   ProductService(this.repo);
 
   Future<List<Product>> fetchProducts(String storeId) => repo.getProductsByStore(storeId);
+  Future<Product?> fetchProduct(String storeId, String productId) => repo.getProductById(storeId, productId);
   Future<Product> addProduct(Product product) => repo.addProduct(product);
   Future<void> addMany(List<Product> products) => repo.addManyProducts(products);
+  Future<Product> updateProduct(Product product) => repo.updateProduct(product);
+  Future<void> deleteProduct(String storeId, String productId) => repo.deleteProduct(storeId, productId);
 }

@@ -9,12 +9,14 @@ class StoreMapToolbar extends StatelessWidget {
   final StoreMapController ctrl;
   final String storeName;
   final VoidCallback onChanged;
+  final Future<void> Function()? onSave;
 
   const StoreMapToolbar({
     super.key,
     required this.ctrl,
     required this.storeName,
     required this.onChanged,
+    this.onSave,
   });
 
   void _toggle(EditorTool t) {
@@ -113,8 +115,59 @@ class StoreMapToolbar extends StatelessWidget {
           ),
           const Spacer(),
           Text('Magasin: $storeName'),
+          const SizedBox(width: 12),
+          _SaveButton(onSave: onSave),
         ],
       ),
+    );
+  }
+}
+
+class _SaveButton extends StatefulWidget {
+  final Future<void> Function()? onSave;
+
+  const _SaveButton({required this.onSave});
+
+  @override
+  State<_SaveButton> createState() => _SaveButtonState();
+}
+
+class _SaveButtonState extends State<_SaveButton> {
+  bool _saving = false;
+
+  Future<void> _save() async {
+    final onSave = widget.onSave;
+    if (onSave == null || _saving) return;
+
+    setState(() => _saving = true);
+    try {
+      await onSave();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Carte sauvegardee')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur sauvegarde: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Sauvegarder',
+      onPressed: widget.onSave == null || _saving ? null : _save,
+      icon: _saving
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.save),
     );
   }
 }

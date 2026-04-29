@@ -50,7 +50,11 @@ class ApiStoreRepository implements StoreRepository {
     final res = await _client.post(
       uri,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(store.toJson()),
+      body: jsonEncode({
+        'name': store.name,
+        'latitude': store.latitude,
+        'longitude': store.longitude,
+      }),
     );
 
     if (res.statusCode != 201) {
@@ -79,8 +83,12 @@ class ApiStoreRepository implements StoreRepository {
   }
 
   @override
-  Future<void> deleteStore(String id) {
-    // TODO: implement deleteStore
-    throw UnimplementedError();
+  Future<void> deleteStore(String id) async {
+    final uri = Uri.parse('$baseUrl/stores/$id');
+    final res = await _client.delete(uri);
+
+    if (res.statusCode != 204) {
+      throw Exception('Failed to delete store (${res.statusCode})');
+    }
   }
 }

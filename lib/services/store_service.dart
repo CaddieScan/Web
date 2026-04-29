@@ -9,6 +9,9 @@ class StoreService {
   StoreService(this.repo);
 
   Future<List<Store>> fetchStores() => repo.getStores();
+  Future<Store?> fetchStore(String id) => repo.getStoreById(id);
   Future<Store> addStore(Store store) => repo.createStore(store);
+  Future<Store> updateStore(Store store) => repo.updateStore(store);
+  Future<void> deleteStore(String id) => repo.deleteStore(id);
   // test
 }

@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../services/store_service.dart';
 import '../services/product_service.dart';
+import '../services/store_map_service.dart';
 import 'home_page.dart';
 
 class LoginPage extends StatelessWidget {
   final StoreService storeService;
   final ProductService productService;
+  final StoreMapService storeMapService;
 
   const LoginPage({
     super.key,
     required this.storeService,
     required this.productService,
+    required this.storeMapService,
   });
 
   @override
@@ -51,6 +54,7 @@ class LoginPage extends StatelessWidget {
                         builder: (_) => HomePage(
                           storeService: storeService,
                           productService: productService,
+                          storeMapService: storeMapService,
                         ),
                       ),
                     );

@@ -42,6 +42,15 @@ class MockStoreRepository implements StoreRepository {
   }
 
   @override
+  Future<Store> updateStore(Store store) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final index = _stores.indexWhere((s) => s.id == store.id);
+    if (index == -1) throw Exception('Store not found');
+    _stores[index] = store;
+    return store;
+  }
+
+  @override
   Future<void> deleteStore(String id) async {
     await Future.delayed(const Duration(milliseconds: 120));
     _stores.removeWhere((s) => s.id == id);

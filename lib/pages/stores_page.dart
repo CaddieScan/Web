@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 import '../models/store.dart';
 import '../services/store_service.dart';
 import '../services/product_service.dart';
+import '../services/store_map_service.dart';
 import 'add_store_map_page.dart';
 import 'store_page.dart';
 
 class StoresPage extends StatefulWidget {
   final StoreService storeService;
   final ProductService productService;
+  final StoreMapService storeMapService;
 
   const StoresPage({
     super.key,
     required this.storeService,
     required this.productService,
+    required this.storeMapService,
   });
 
   @override
@@ -138,6 +141,7 @@ class _StoresPageState extends State<StoresPage> {
                         builder: (_) => StorePage(
                           store: s,
                           productService: widget.productService,
+                          storeMapService: widget.storeMapService,
                         ),
                       ),
                     );

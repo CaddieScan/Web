@@ -25,6 +25,7 @@ class ProductsPage extends StatefulWidget {
 }
 
 class _ProductsPageState extends State<ProductsPage> {
+  static const String _apiHost = 'http://localhost:8000';
   static const String _placeholderImg = 'images/product_placeholder.png';
   bool _loading = true;
   String? _error;
@@ -74,11 +75,12 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   Future<void> _addNewProduct() async {
-    final created = await showDialog<Product>(
+    final action = await showDialog<_ProductDialogAction>(
       context: context,
-      builder: (_) => const _CreateProductDialog(),
+      builder: (_) => const _ProductDialog(),
     );
 
+    final created = action?.product;
     if (created == null) return;
 
     // On force storeId + placeholder ici pour être sûr
@@ -87,8 +89,58 @@ class _ProductsPageState extends State<ProductsPage> {
       imageAssetPath: created.imageAssetPath.isEmpty ? _placeholderImg : created.imageAssetPath,
     );
 
-    await widget.productService.addProduct(toSave);
-    await _load();
+    try {
+      await widget.productService.addProduct(toSave);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur ajout produit: $e')),
+      );
+    }
+  }
+
+  Future<void> _editProduct(Product product) async {
+    final action = await showDialog<_ProductDialogAction>(
+      context: context,
+      builder: (_) => _ProductDialog(product: product),
+    );
+
+    if (action == null) return;
+
+    if (action.delete) {
+      try {
+        await widget.productService.deleteProduct(widget.store.id, product.id);
+        await _load();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur suppression produit: $e')),
+        );
+      }
+      return;
+    }
+
+    final updated = action.product;
+    if (updated == null) return;
+
+    final toSave = updated.copyWith(
+      id: product.id,
+      storeId: widget.store.id,
+      imageAssetPath: updated.imageAssetPath.isEmpty
+          ? _placeholderImg
+          : updated.imageAssetPath,
+    );
+
+    try {
+      await widget.productService.updateProduct(toSave);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur modification produit: $e')),
+      );
+    }
   }
 
   Future<void> _importCsv() async {
@@ -288,6 +340,45 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
 
+  Widget _productImage(Product product) {
+    final path = product.imageAssetPath.trim();
+
+    Widget fallback() => Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      child: const Icon(Icons.image_not_supported),
+    );
+
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+
+    if (path.startsWith('/')) {
+      return Image.network(
+        '$_apiHost$path',
+        width: 48,
+        height: 48,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+
+    return Image.asset(
+      path.isEmpty ? _placeholderImg : path,
+      width: 48,
+      height: 48,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => fallback(),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -352,20 +443,10 @@ class _ProductsPageState extends State<ProductsPage> {
               return ListTile(
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    p.imageAssetPath,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 48,
-                      height: 48,
-                      alignment: Alignment.center,
-                      child: const Icon(Icons.image_not_supported),
-                    ),
-                  ),
+                  child: _productImage(p),
                 ),
                 title: Text(p.name),
+                onTap: () => _editProduct(p),
                 subtitle: Text('${p.category} • Stock: ${p.quantity} ${p.unit}'),
                 trailing: p.price == null
                     ? null
@@ -511,6 +592,199 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
         ElevatedButton(
           onPressed: _submit,
           child: const Text('Ajouter'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProductDialogAction {
+  final Product? product;
+  final bool delete;
+
+  const _ProductDialogAction.save(this.product) : delete = false;
+  const _ProductDialogAction.delete()
+      : product = null,
+        delete = true;
+}
+
+class _ProductDialog extends StatefulWidget {
+  final Product? product;
+
+  const _ProductDialog({this.product});
+
+  @override
+  State<_ProductDialog> createState() => _ProductDialogState();
+}
+
+class _ProductDialogState extends State<_ProductDialog> {
+  static const String _placeholderImg = 'images/product_placeholder.png';
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _catCtrl;
+  late final TextEditingController _priceCtrl;
+  late final TextEditingController _qtyCtrl;
+  late final TextEditingController _unitCtrl;
+
+  String? _error;
+
+  bool get _isEdit => widget.product != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final product = widget.product;
+    _nameCtrl = TextEditingController(text: product?.name ?? '');
+    _catCtrl = TextEditingController(text: product?.category ?? 'Autre');
+    _priceCtrl = TextEditingController(
+      text: product?.price == null ? '' : product!.price!.toString(),
+    );
+    _qtyCtrl = TextEditingController(text: product?.quantity.toString() ?? '1');
+    _unitCtrl = TextEditingController(text: product?.unit ?? 'pcs');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _catCtrl.dispose();
+    _priceCtrl.dispose();
+    _qtyCtrl.dispose();
+    _unitCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameCtrl.text.trim();
+    final cat = _catCtrl.text.trim();
+    final priceStr = _priceCtrl.text.trim();
+
+    if (name.isEmpty) {
+      setState(() => _error = 'Nom obligatoire');
+      return;
+    }
+
+    final price = priceStr.isEmpty
+        ? null
+        : double.tryParse(priceStr.replaceAll(',', '.'));
+
+    final qty = int.tryParse(_qtyCtrl.text.trim());
+    final unit = _unitCtrl.text.trim();
+
+    if (qty == null || qty < 0) {
+      setState(() => _error = 'Quantite invalide');
+      return;
+    }
+    if (unit.isEmpty) {
+      setState(() => _error = 'Unite obligatoire');
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      _ProductDialogAction.save(
+        Product(
+          id: widget.product?.id ?? '',
+          storeId: widget.product?.storeId ?? '',
+          name: name,
+          category: cat.isEmpty ? 'Autre' : cat,
+          price: price,
+          quantity: qty,
+          unit: unit,
+          barcode: widget.product?.barcode,
+          imageAssetPath: widget.product?.imageAssetPath ?? _placeholderImg,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Supprimer le produit'),
+        content: Text('Supprimer "${widget.product?.name ?? 'ce produit'}" ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+    Navigator.pop(context, const _ProductDialogAction.delete());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_isEdit ? 'Modifier produit' : 'Nouveau produit'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: 'Nom'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _catCtrl,
+              decoration: const InputDecoration(labelText: 'Categorie'),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _qtyCtrl,
+                    decoration: const InputDecoration(labelText: 'Quantite (stock)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _unitCtrl,
+                    decoration: const InputDecoration(labelText: 'Unite (pcs, kg, L...)'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _priceCtrl,
+              decoration: const InputDecoration(labelText: 'Prix (optionnel)'),
+              keyboardType: TextInputType.number,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        if (_isEdit)
+          TextButton(
+            onPressed: _confirmDelete,
+            child: const Text('Supprimer'),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          child: Text(_isEdit ? 'Enregistrer' : 'Ajouter'),
         ),
       ],
     );

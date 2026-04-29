@@ -363,6 +363,16 @@ class MockProductRepository implements ProductRepository {
   }
 
   @override
+  Future<Product?> getProductById(String storeId, String productId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    try {
+      return (_byStore[storeId] ?? const []).firstWhere((p) => p.id == productId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<Product> addProduct(Product product) async {
     await Future.delayed(const Duration(milliseconds: 120));
 
@@ -390,5 +400,24 @@ class MockProductRepository implements ProductRepository {
       final list = _byStore.putIfAbsent(created.storeId, () => []);
       list.add(created);
     }
+  }
+
+  @override
+  Future<Product> updateProduct(Product product) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    final list = _byStore[product.storeId];
+    if (list == null) throw Exception('Product not found');
+
+    final index = list.indexWhere((p) => p.id == product.id);
+    if (index == -1) throw Exception('Product not found');
+
+    list[index] = product;
+    return product;
+  }
+
+  @override
+  Future<void> deleteProduct(String storeId, String productId) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    _byStore[storeId]?.removeWhere((p) => p.id == productId);
   }
 }
