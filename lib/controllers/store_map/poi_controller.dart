@@ -1,112 +1,86 @@
-import 'dart:math';
-import 'dart:ui';
-
+﻿import 'package:flutter/material.dart';
 import '../../models/store_poi_models.dart';
 import 'store_map_data.dart';
 import 'store_map_state.dart';
-
-// ici on controle les POI qui sont : les entrée, sortie, caisse, etc... on les modélise avec des points avec un type et un label
-
 class PoiController {
   final StoreMapState state;
   final StoreMapData data;
-
-  bool isMoving = false;
-  double _dx = 0;
-  double _dy = 0;
-
+  StorePoi? movingPoi;
+  double hoverX = 0;
+  double hoverY = 0;
   PoiController(this.state, this.data);
-
-  List<StorePoi> get pois => data.poisByFloor[state.activeFloorId] ?? const [];
-
   StorePoi? poiById(String id) {
-    for (final p in pois) {
-      if (p.id == id) return p;
+    for (final list in data.poisByFloor.values) {
+      final idx = list.indexWhere((p) => p.id == id);
+      if (idx >= 0) return list[idx];
     }
     return null;
   }
-
-  StorePoi? hitTest(double x, double y, {double radius = 14}) {
-    StorePoi? best;
-    double bestD = double.infinity;
-
+  StorePoi? hitTest(double x, double y) {
+    if (state.activeFloorId.isEmpty) return null;
+    final pois = data.poisByFloor[state.activeFloorId];
+    if (pois == null) return null;
+    final threshold = 20.0;
     for (final p in pois) {
-      final dx = x - p.x;
-      final dy = y - p.y;
-      final d = sqrt(dx * dx + dy * dy);
-      if (d <= radius && d < bestD) {
-        bestD = d;
-        best = p;
+      final dx = p.x - x;
+      final dy = p.y - y;
+      if (dx * dx + dy * dy <= threshold * threshold) {
+        return p;
       }
     }
-    return best;
+    return null;
   }
-
-  StorePoi addPoi({
+  void updateHover(double px, double py) {
+    final p = hitTest(px, py);
+    hoverX = px;
+    hoverY = py;
+  }
+  StorePoi? addPoi({
     required String id,
     required String floorId,
     required PoiType type,
     required Offset world,
   }) {
-    final p = state.snapOffset(world);
-
-    final poi = StorePoi(
+    data.poisByFloor.putIfAbsent(floorId, () => []);
+    final nx = world.dx;
+    final ny = world.dy;
+    final newPoi = StorePoi(
       id: id,
       floorId: floorId,
       type: type,
-      x: p.dx,
-      y: p.dy,
-      label: _defaultLabel(type),
+      x: nx,
+      y: ny,
+      label: type == PoiType.entry ? 'Entrée' : 'Sortie',
     );
-
-    data.poisByFloor[floorId]!.add(poi);
-
-    state.selectedPoiId = poi.id;
+    data.poisByFloor[floorId]!.add(newPoi);
+    state.selectedPoiId = id;
     state.selectedZoneId = null;
-    return poi;
+    return newPoi;
   }
-
-  String _defaultLabel(PoiType t) {
-    switch (t) {
-      case PoiType.entry:
-        return 'Entree';
-      case PoiType.exit:
-        return 'Sortie';
-      case PoiType.checkout:
-        return 'Caisse';
+  void deletePoi(String id) {
+    for (final floorId in data.poisByFloor.keys) {
+      data.poisByFloor[floorId]!.removeWhere((p) => p.id == id);
     }
   }
-
-  void updateHover(double x, double y) {
-    final p = hitTest(x, y);
-    state.hoveredPoiId = p?.id;
-  }
-
-  void selectPoi(String? id) {
-    state.selectedPoiId = id;
-    if (id != null) state.selectedZoneId = null;
-    cancelMove();
-  }
-
+  bool get isMoving => movingPoi != null;
   void startMove(StorePoi p, double px, double py) {
-    isMoving = true;
-    _dx = px - p.x;
-    _dy = py - p.y;
+    movingPoi = p;
   }
-
   bool updateMove(StorePoi p, double px, double py) {
-    if (!isMoving) return false;
-
-    final nx = state.snapToGrid ? state.snap(px - _dx) : (px - _dx);
-    final ny = state.snapToGrid ? state.snap(py - _dy) : (py - _dy);
-
-    final changed = (nx != p.x) || (ny != p.y);
-    p.x = nx;
-    p.y = ny;
-    return changed;
+    if (movingPoi != p) return false;
+    p.x = px;
+    p.y = py;
+    return true;
   }
-
-  void finishMove() => isMoving = false;
-
-  void cancelMove() => isMoving = false;
+  void finishMove() {
+    movingPoi = null;
+  }
+  void cancelMove() {
+    movingPoi = null;
+  }
+  StorePoi? placePoi(PoiType type, Offset world) {
+    if (state.activeFloorId.isEmpty) return null;
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    return addPoi(id: id, floorId: state.activeFloorId, type: type, world: world);
+  }
 }

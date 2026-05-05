@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../controllers/store_map/store_map_controller.dart';
-import '../../widgets/store_map/store_map_left_panel.dart';
 import '../../widgets/store_map/store_map_toolbar.dart';
+import '../../widgets/store_map/store_map_left_panel.dart';
 import '../../widgets/store_map/store_map_canvas.dart';
 
+// intents pour les raccourcis clavier (Ctrl+Z pour undo, Delete/Backspace pour supprimer)
 class UndoIntent extends Intent {
   const UndoIntent();
 }
@@ -14,6 +15,9 @@ class DeleteIntentX extends Intent {
   const DeleteIntentX();
 }
 
+// c'est là où tu peux éditer la carte/plan du magasin
+// tu peux dessiner des zones, des rayons, des points de caisse, des murs, des allées, etc.
+// bref toute la structure du magasin
 class StoreMapEditorPage extends StatefulWidget {
   final StoreMapController ctrl;
   final String storeName;
@@ -27,42 +31,45 @@ class StoreMapEditorPage extends StatefulWidget {
   });
 
   @override
-  State<StoreMapEditorPage> createState() => _StoreMapEditorPageState();
+  State<StoreMapEditorPage> createState() => StoreMapEditorPageState();
 }
 
-class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
-  late final FocusNode _focusNode;
-
+class StoreMapEditorPageState extends State<StoreMapEditorPage> {
   StoreMapController get ctrl => widget.ctrl;
+  final FocusNode focusNode = FocusNode();
 
-  bool _isTypingInTextField() {
+  // vérifie si l'utilisateur est en train de taper dans un TextField
+  // utile pour pas déclencher les raccourcis clavier (Ctrl+Z, Delete) pendant qu'on tape
+  bool isTypingInTextField() {
     final focus = FocusManager.instance.primaryFocus;
     if (focus == null) return false;
     final ctx = focus.context;
     if (ctx == null) return false;
 
-    // Si le focus est dans un EditableText (TextField / TextFormField)
     return ctx.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode(debugLabel: 'StoreMapEditorFocus');
-
-    // IMPORTANT: request focus after first frame (web needs it)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
-    });
+    requestEditorFocus();
   }
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    focusNode.unfocus();
+    focusNode.dispose();
     super.dispose();
   }
 
-  void _refresh() => setState(() {});
+  void requestEditorFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      if (!mounted) return;
+      focusNode.requestFocus();
+    });
+  }
+
+  void refresh() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -75,77 +82,46 @@ class _StoreMapEditorPageState extends State<StoreMapEditorPage> {
       child: Actions(
         actions: <Type, Action<Intent>>{
           DeleteIntentX: CallbackAction<DeleteIntentX>(
-            onInvoke: (_) {
-              if (_isTypingInTextField()) return null;
+            onInvoke: (intent) {
+              if (isTypingInTextField()) return null;
               setState(() => ctrl.deleteSelected());
-              _focusNode.requestFocus();
-
+              requestEditorFocus();
               return null;
             },
           ),
           UndoIntent: CallbackAction<UndoIntent>(
-            onInvoke: (_) {
-              if (_isTypingInTextField()) return null;
+            onInvoke: (intent) {
+              if (isTypingInTextField()) return null;
               setState(() => ctrl.undo());
-              _focusNode.requestFocus();
+              requestEditorFocus();
               return null;
             },
           ),
-
         },
         child: Focus(
-          focusNode: _focusNode,
-          autofocus: true,
-          onKeyEvent: (_, __) => KeyEventResult.ignored,
+          focusNode: focusNode,
+          autofocus: false,
+          onKeyEvent: (node, event) => KeyEventResult.ignored,
           child: GestureDetector(
-            // Click anywhere gives focus back (super important on web)
             behavior: HitTestBehavior.opaque,
-            onTap: () => _focusNode.requestFocus(),
+            onTap: () {},
             child: Scaffold(
               body: Column(
                 children: [
                   StoreMapToolbar(
                     ctrl: ctrl,
                     storeName: widget.storeName,
-                    onChanged: _refresh,
+                    onChanged: refresh,
                     onSave: widget.onSave,
                   ),
                   Expanded(
                     child: Row(
                       children: [
-                        StoreMapLeftPanel(ctrl: ctrl, onChanged: _refresh),
+                        StoreMapLeftPanel(ctrl: ctrl, onChanged: refresh),
                         Expanded(
                           child: Stack(
                             children: [
-                              StoreMapCanvas(ctrl: ctrl, onChanged: _refresh),
-
-                              // DEBUG (tu peux supprimer apres)
-                              Positioned(
-                                left: 12,
-                                bottom: 12,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.65),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: DefaultTextStyle(
-                                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Focus: ${_focusNode.hasFocus}'),
-                                        Text('SelZone: ${ctrl.selectedZoneId ?? "-"}'),
-                                        Text('SelPoi: ${ctrl.selectedPoiId ?? "-"}'),
-                                        Text('SelWall: ${ctrl.selectedWallIndex?.toString() ?? "-"}'),
-                                        Text('SelNode: ${ctrl.selectedAisleNodeIndex?.toString() ?? "-"}'),
-                                        Text('SelEdge: ${ctrl.selectedAisleEdgeIndex?.toString() ?? "-"}'),
-                                        Text('Undo: ${ctrl.canUndo}'),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              StoreMapCanvas(ctrl: ctrl, onChanged: refresh),
                             ],
                           ),
                         ),

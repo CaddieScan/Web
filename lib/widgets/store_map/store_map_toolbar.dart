@@ -1,16 +1,11 @@
-import 'package:flutter/material.dart';
-
+﻿import 'package:flutter/material.dart';
 import '../../controllers/store_map/store_map_controller.dart';
 import '../../controllers/store_map/store_map_state.dart';
-
-// ce widget affiche la barre d'outils pour choisir entre les différents outils d'édition du plan du magasin
-
 class StoreMapToolbar extends StatelessWidget {
   final StoreMapController ctrl;
   final String storeName;
   final VoidCallback onChanged;
   final Future<void> Function()? onSave;
-
   const StoreMapToolbar({
     super.key,
     required this.ctrl,
@@ -18,27 +13,19 @@ class StoreMapToolbar extends StatelessWidget {
     required this.onChanged,
     this.onSave,
   });
-
-  void _toggle(EditorTool t) {
+  void toggle(EditorTool t) {
     ctrl.setTool(t);
     onChanged();
   }
-
   @override
   Widget build(BuildContext context) {
     final selected = [
       ctrl.tool == EditorTool.select,
       ctrl.tool == EditorTool.drawRect,
       ctrl.tool == EditorTool.drawCircle,
-      ctrl.tool == EditorTool.drawWall,
-
-      ctrl.tool == EditorTool.drawAisle,
-
       ctrl.tool == EditorTool.placeEntry,
       ctrl.tool == EditorTool.placeExit,
-      ctrl.tool == EditorTool.placeCheckout,
     ];
-
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -53,28 +40,19 @@ class StoreMapToolbar extends StatelessWidget {
             onPressed: (idx) {
               switch (idx) {
                 case 0:
-                  _toggle(EditorTool.select);
+                  toggle(EditorTool.select);
                   break;
                 case 1:
-                  _toggle(EditorTool.drawRect);
+                  toggle(EditorTool.drawRect);
                   break;
                 case 2:
-                  _toggle(EditorTool.drawCircle);
+                  toggle(EditorTool.drawCircle);
                   break;
                 case 3:
-                  _toggle(EditorTool.drawWall);
+                  toggle(EditorTool.placeEntry);
                   break;
                 case 4:
-                  _toggle(EditorTool.drawAisle);
-                  break;
-                case 5:
-                  _toggle(EditorTool.placeEntry);
-                  break;
-                case 6:
-                  _toggle(EditorTool.placeExit);
-                  break;
-                case 7:
-                  _toggle(EditorTool.placeCheckout);
+                  toggle(EditorTool.placeExit);
                   break;
               }
             },
@@ -93,53 +71,35 @@ class StoreMapToolbar extends StatelessWidget {
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Row(children: [Icon(Icons.horizontal_rule), SizedBox(width: 6), Text('Mur')]),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Row(children: [Icon(Icons.alt_route), SizedBox(width: 6), Text('Allee')]),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Row(children: [Icon(Icons.login), SizedBox(width: 6), Text('Entree')]),
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Row(children: [Icon(Icons.logout), SizedBox(width: 6), Text('Sortie')]),
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Row(children: [Icon(Icons.point_of_sale), SizedBox(width: 6), Text('Caisse')]),
-              ),
             ],
           ),
           const Spacer(),
-          Text('Magasin: $storeName'),
+          Text('Magasin: '),
           const SizedBox(width: 12),
-          _SaveButton(onSave: onSave),
+          SaveButton(onSave: onSave),
         ],
       ),
     );
   }
 }
-
-class _SaveButton extends StatefulWidget {
+class SaveButton extends StatefulWidget {
   final Future<void> Function()? onSave;
-
-  const _SaveButton({required this.onSave});
-
+  const SaveButton({super.key, this.onSave});
   @override
-  State<_SaveButton> createState() => _SaveButtonState();
+  State<SaveButton> createState() => SaveButtonState();
 }
-
-class _SaveButtonState extends State<_SaveButton> {
-  bool _saving = false;
-
-  Future<void> _save() async {
+class SaveButtonState extends State<SaveButton> {
+  bool saving = false;
+  Future<void> save() async {
     final onSave = widget.onSave;
-    if (onSave == null || _saving) return;
-
-    setState(() => _saving = true);
+    if (onSave == null || saving) return;
+    setState(() => saving = true);
     try {
       await onSave();
       if (!mounted) return;
@@ -149,19 +109,18 @@ class _SaveButtonState extends State<_SaveButton> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur sauvegarde: $e')),
+        SnackBar(content: Text('Erreur sauvegarde: ')),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) setState(() => saving = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: 'Sauvegarder',
-      onPressed: widget.onSave == null || _saving ? null : _save,
-      icon: _saving
+      onPressed: widget.onSave == null || saving ? null : save,
+      icon: saving
           ? const SizedBox(
               width: 18,
               height: 18,

@@ -37,13 +37,13 @@ class StoreCategory {
   factory StoreCategory.fromJson(Map<String, dynamic> json) => StoreCategory(
         id: json['id'].toString(),
         name: json['name'] as String,
-        color: _colorFromHex(json['color']?.toString() ?? '#4CAF50'),
+        color: colorFromHex(json['color']?.toString() ?? '#4CAF50'),
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'color': _colorToHex(color),
+        'color': colorToHex(color),
       };
 }
 
@@ -81,11 +81,11 @@ class StoreZone {
         floorId: json['floorId'].toString(),
         name: (json['name'] as String?) ?? '',
         categoryId: json['categoryId'].toString(),
-        x: _numFromJson(json['x']),
-        y: _numFromJson(json['y']),
-        w: _numFromJson(json['w']),
-        h: _numFromJson(json['h']),
-        shape: _zoneShapeFromJson(json['shape']?.toString()),
+        x: numFromJson(json['x']),
+        y: numFromJson(json['y']),
+        w: numFromJson(json['w']),
+        h: numFromJson(json['h']),
+        shape: zoneShapeFromJson(json['shape']?.toString()),
       );
 
   Map<String, dynamic> toJson() => {
@@ -116,22 +116,22 @@ class StoreZone {
   }
 }
 
-Color _colorFromHex(String value) {
+Color colorFromHex(String value) {
   var hex = value.replaceFirst('#', '').trim();
   if (hex.length == 6) hex = 'FF$hex';
   return Color(int.parse(hex, radix: 16));
 }
 
-String _colorToHex(Color color) {
-  final value = color.value & 0xFFFFFF;
+String colorToHex(Color color) {
+  final value = color.toARGB32() & 0xFFFFFF;
   return '#${value.toRadixString(16).padLeft(6, '0')}';
 }
 
-ZoneShape _zoneShapeFromJson(String? value) {
+ZoneShape zoneShapeFromJson(String? value) {
   return value == ZoneShape.circle.name ? ZoneShape.circle : ZoneShape.rect;
 }
 
-double _numFromJson(dynamic value) {
+double numFromJson(dynamic value) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value) ?? 0;
   return 0;

@@ -20,68 +20,65 @@ class StorePage extends StatefulWidget {
   });
 
   @override
-  State<StorePage> createState() => _StorePageState();
+  State<StorePage> createState() => StorePageState();
 }
 
-class _StorePageState extends State<StorePage> {
-  int _index = 0;
-
-  late final StoreMapController _mapCtrl;
-  bool _mapLoading = true;
-  String? _mapError;
+class StorePageState extends State<StorePage>
+    with SingleTickerProviderStateMixin {
+  late final TabController tabController = TabController(length: 2, vsync: this);
+  final mapCtrl = StoreMapController();
+  late final Future<void> mapFuture;
 
   @override
   void initState() {
     super.initState();
-    _mapCtrl = StoreMapController();
-    _loadMap();
-  }
-
-  Future<void> _loadMap() async {
-    try {
-      final data = await widget.storeMapService.fetchMap(widget.store.id);
-      if (!mounted) return;
-      setState(() {
-        _mapCtrl.loadData(data);
-        _mapLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _mapError = '$e';
-        _mapLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveMap() async {
-    await widget.storeMapService.saveMap(widget.store.id, _mapCtrl.exportData());
+    mapFuture = widget.storeMapService
+        .fetchMap(widget.store.id)
+        .then(mapCtrl.loadData);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final pages = [
-      ProductsPage(store: widget.store, productService: widget.productService),
-      _mapLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _mapError != null
-              ? Center(child: Text('Erreur carte: $_mapError'))
-              : StoreMapEditorPage(
-                  ctrl: _mapCtrl,
-                  storeName: widget.store.name,
-                  onSave: _saveMap,
-                ),
-    ];
+  void dispose() {
+    tabController.dispose();
+    super.dispose();
+  }
 
+  Future<void> saveMap() =>
+      widget.storeMapService.saveMap(widget.store.id, mapCtrl.exportData());
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.store.name)),
-      body: pages[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.list_alt), label: 'Produits'),
-          NavigationDestination(icon: Icon(Icons.map), label: 'Carte magasin'),
+      appBar: AppBar(
+        title: Text(widget.store.name),
+        bottom: TabBar(
+          controller: tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.list_alt), text: 'Produits'),
+            Tab(icon: Icon(Icons.map), text: 'Carte magasin'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: tabController,
+        children: [
+          ProductsPage(
+            store: widget.store,
+            productService: widget.productService,
+          ),
+          FutureBuilder(
+            future: mapFuture,
+            builder: (context, snapshot) => switch (snapshot.connectionState) {
+              ConnectionState.done when snapshot.hasError =>
+                  Center(child: Text('Erreur carte : ${snapshot.error}')),
+              ConnectionState.done => StoreMapEditorPage(
+                ctrl: mapCtrl,
+                storeName: widget.store.name,
+                onSave: saveMap,
+              ),
+              _ => const Center(child: CircularProgressIndicator()),
+            },
+          ),
         ],
       ),
     );

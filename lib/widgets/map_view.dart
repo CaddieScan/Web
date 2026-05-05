@@ -25,8 +25,8 @@ class MapView extends StatelessWidget {
 
     return FlutterMap(
       options: MapOptions(
-        center: center,
-        zoom: 13,
+        initialCenter: center,
+        initialZoom: 13,
       ),
       children: [
         TileLayer(

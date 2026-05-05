@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-
 import '../services/store_service.dart';
 import '../services/product_service.dart';
 import '../services/store_map_service.dart';
 import 'home_page.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   final StoreService storeService;
   final ProductService productService;
   final StoreMapService storeMapService;
@@ -18,84 +17,54 @@ class LoginPage extends StatelessWidget {
   });
 
   @override
+  State<LoginPage> createState() => LoginPageState();
+}
+
+class LoginPageState extends State<LoginPage> {
+  bool loading = false;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade200,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset('images/img.png', fit: BoxFit.cover),
-                ),
-              ),
-              const SizedBox(height: 40),
-              _inputField(icon: Icons.person, hint: 'Username'),
-              const SizedBox(height: 15),
-              _inputField(icon: Icons.lock, hint: 'Password', obscure: true),
-              const SizedBox(height: 30),
-              SizedBox(
-                width: 220,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => HomePage(
-                          storeService: storeService,
-                          productService: productService,
-                          storeMapService: storeMapService,
-                        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset('images/img.png', width: 140, height: 140, fit: BoxFit.cover),
+            ),
+            const SizedBox(height: 40),
+            const SizedBox(width: 280, child: TextField(decoration: InputDecoration(hintText: 'Username'))),
+            const SizedBox(height: 15),
+            const SizedBox(width: 280, child: TextField(obscureText: true, decoration: InputDecoration(hintText: 'Password'))),
+            const SizedBox(height: 30),
+            loading
+                ? const CircularProgressIndicator()
+                : FilledButton(
+              onPressed: () async {
+                setState(() => loading = true);
+                await Future.delayed(const Duration(seconds: 2));
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HomePage(
+                        storeService: widget.storeService,
+                        productService: widget.productService,
+                        storeMapService: widget.storeMapService,
                       ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
                     ),
-                  ),
-                  child: const Text(
-                    'Connexion',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                ),
+                  );
+                }
+              },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(220, 50),
+                shape: const StadiumBorder(),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _inputField({
-    required IconData icon,
-    required String hint,
-    bool obscure = false,
-  }) {
-    return SizedBox(
-      width: 280,
-      child: TextField(
-        obscureText: obscure,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon),
-          hintText: hint,
-          filled: true,
-          fillColor: Colors.grey.shade200,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30),
-            borderSide: BorderSide.none,
-          ),
+              child: const Text('Connexion', style: TextStyle(fontSize: 18)),
+            ),
+          ],
         ),
       ),
     );

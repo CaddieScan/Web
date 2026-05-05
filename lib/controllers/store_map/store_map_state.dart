@@ -1,62 +1,50 @@
-import 'dart:ui';
-
-// sert à géré les outils qui sont utilisés pour la carte interactif
-
-enum EditorTool {
-  select,
-  drawRect,
-  drawCircle,
-  drawWall,
-  drawAisle,
-  placeEntry,
-  placeExit,
-  placeCheckout,
-}
-
-enum ResizeHandle { tl, tr, bl, br }
-
+﻿import 'package:flutter/material.dart';
+import 'store_map_state.dart';
 class StoreMapState {
   EditorTool tool = EditorTool.select;
-
-  String? activeFloorId;
-  String? activeCategoryId;
-
+  String activeFloorId = '';
+  String activeCategoryId = '';
   String? selectedZoneId;
-  String? hoveredZoneId;
-
   String? selectedPoiId;
-  String? hoveredPoiId;
-
-  // NEW selections
-  int? selectedWallIndex;        // index dans wallsByFloor[floor]
-  int? selectedAisleNodeIndex;   // index dans nodes
-  int? selectedAisleEdgeIndex;   // index dans edges
-
   bool snapToGrid = true;
-  double gridSize = 20;
-
-  double snap(double v) => (v / gridSize).round() * gridSize;
-
-  Offset snapOffset(Offset p) => Offset(snap(p.dx), snap(p.dy));
-
+  double gridSize = 20.0;
+  double snap(double val) {
+    if (!snapToGrid) return val;
+    return (val / gridSize).roundToDouble() * gridSize;
+  }
+  Offset snapOffset(Offset o) {
+    if (!snapToGrid) return o;
+    return Offset(
+      (o.dx / gridSize).roundToDouble() * gridSize,
+      (o.dy / gridSize).roundToDouble() * gridSize,
+    );
+  }
+  StoreMapState();
   StoreMapState deepCopy() {
     final s = StoreMapState();
     s.tool = tool;
     s.activeFloorId = activeFloorId;
     s.activeCategoryId = activeCategoryId;
-
     s.selectedZoneId = selectedZoneId;
-    s.hoveredZoneId = hoveredZoneId;
-
     s.selectedPoiId = selectedPoiId;
-    s.hoveredPoiId = hoveredPoiId;
-
-    s.selectedWallIndex = selectedWallIndex;
-    s.selectedAisleNodeIndex = selectedAisleNodeIndex;
-    s.selectedAisleEdgeIndex = selectedAisleEdgeIndex;
-
     s.snapToGrid = snapToGrid;
     s.gridSize = gridSize;
     return s;
   }
+  void loadFrom(StoreMapState other) {
+    tool = other.tool;
+    activeFloorId = other.activeFloorId;
+    activeCategoryId = other.activeCategoryId;
+    selectedZoneId = other.selectedZoneId;
+    selectedPoiId = other.selectedPoiId;
+    snapToGrid = other.snapToGrid;
+    gridSize = other.gridSize;
+  }
+}
+enum EditorTool {
+  select,
+  drawRect,
+  drawCircle,
+  placeEntry,
+  placeExit,
 }

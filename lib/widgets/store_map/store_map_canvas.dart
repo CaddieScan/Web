@@ -1,494 +1,180 @@
-import 'dart:ui';
-
-import 'package:flutter/gestures.dart';
+﻿import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-
 import '../../controllers/store_map/store_map_controller.dart';
 import '../../controllers/store_map/store_map_state.dart';
-import '../../dialogs/text_prompt_dialog.dart';
-import '../../dialogs/checkout_poi_dialog.dart';
+import '../../models/store_map_models.dart';
 import '../../models/store_poi_models.dart';
 import '../../painters/store_map_painter.dart';
-import 'store_map_tooltip.dart';
-
-// Ce widget gère la zone de dessin du plan du magasin, les interactions de base (pan, zoom, clic) et affiche les infobulles au survol
-
 class StoreMapCanvas extends StatefulWidget {
   final StoreMapController ctrl;
   final VoidCallback onChanged;
-
   const StoreMapCanvas({
     super.key,
     required this.ctrl,
     required this.onChanged,
   });
-
   @override
-  State<StoreMapCanvas> createState() => _StoreMapCanvasState();
+  State<StoreMapCanvas> createState() => StoreMapCanvasState();
 }
-
-class _StoreMapCanvasState extends State<StoreMapCanvas> {
-  double zoom = 1.0;
-  Offset pan = Offset.zero;
-
-  String? hoverText;
-  Offset? hoverPos;
-
-  bool isMiddlePanning = false;
-  Offset? lastPanPos;
-
-  bool didDrag = false;
-
+class StoreMapCanvasState extends State<StoreMapCanvas> {
   StoreMapController get ctrl => widget.ctrl;
-
-  Offset screenToWorld(Offset screen) => (screen - pan) / zoom;
-
-  Future<String?> _promptZoneName() async {
-    return showDialog<String>(
-      context: context,
-      builder: (_) => const TextPromptDialog(
-        title: 'Nom de la zone',
-        hint: 'Ex: Produits laitiers',
-      ),
+  double scale = 1.0;
+  Offset pan = Offset.zero;
+  bool isPanning = false;
+  Offset screenToWorld(Offset screen) {
+    return Offset(
+      (screen.dx - pan.dx) / scale,
+      (screen.dy - pan.dy) / scale,
     );
   }
-
-  void _openZonePopupIfAny(Offset localPos) {
-    final world = screenToWorld(localPos);
-    final z = ctrl.hitTestZone(world.dx, world.dy);
-    if (z == null) return;
-
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(z.name.isEmpty ? 'Zone' : z.name),
-        content: const Text('Popup vide pour l’instant.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openPoiPopupIfAny(Offset localPos) async {
-    final world = screenToWorld(localPos);
-    final p = ctrl.hitTestPoi(world.dx, world.dy);
-    if (p == null) return;
-
-    if (p.type == PoiType.checkout) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (_) => CheckoutPoiDialog(poi: p),
+  void onPointerSignal(PointerSignalEvent e) {
+    if (e is PointerScrollEvent) {
+      final zoomDelta = e.scrollDelta.dy > 0 ? -0.1 : 0.1;
+      final newScale = (scale + zoomDelta).clamp(0.1, 3.0);
+      final focal = e.localPosition;
+      final pBefore = Offset(
+        (focal.dx - pan.dx) / scale,
+        (focal.dy - pan.dy) / scale,
       );
-      if (ok == true) widget.onChanged();
-      return;
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(p.label.isEmpty ? 'Point' : p.label),
-        content: Text(p.type == PoiType.entry ? 'Entree' : 'Sortie'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-        ],
-      ),
-    );
-  }
-
-  void onPointerDown(PointerDownEvent e) {
-    // middle click => pan
-    if (e.buttons == kMiddleMouseButton) {
       setState(() {
-        isMiddlePanning = true;
-        lastPanPos = e.localPosition;
+        scale = newScale;
+        pan = Offset(
+          focal.dx - pBefore.dx * scale,
+          focal.dy - pBefore.dy * scale,
+        );
       });
+    }
+  }
+  void onPointerDown(PointerDownEvent e) {
+    if (e.buttons == kMiddleMouseButton) {
+      isPanning = true;
       return;
     }
-
+    if (e.buttons == kSecondaryMouseButton) {
+      return;
+    }
     final world = screenToWorld(e.localPosition);
-
-    // --- place POI
     if (ctrl.tool == EditorTool.placeEntry) {
       setState(() => ctrl.placePoi(PoiType.entry, world));
       widget.onChanged();
       return;
-    }
-    if (ctrl.tool == EditorTool.placeExit) {
+    } else if (ctrl.tool == EditorTool.placeExit) {
       setState(() => ctrl.placePoi(PoiType.exit, world));
       widget.onChanged();
       return;
     }
-    if (ctrl.tool == EditorTool.placeCheckout) {
-      setState(() => ctrl.placePoi(PoiType.checkout, world));
-      widget.onChanged();
-      return;
-    }
-
-    // --- draw RECT
-    if (ctrl.tool == EditorTool.drawRect) {
-      setState(() => ctrl.startRect(world.dx, world.dy));
-      widget.onChanged();
-      return;
-    }
-
-    // --- draw CIRCLE
-    if (ctrl.tool == EditorTool.drawCircle) {
-      setState(() => ctrl.startCircle(world.dx, world.dy));
-      widget.onChanged();
-      return;
-    }
-
-    // --- draw WALL
-    if (ctrl.tool == EditorTool.drawWall) {
-      setState(() => ctrl.startWallPoint(world));
-      widget.onChanged();
-      return;
-    }
-
-    // --- draw AISLE
-    if (ctrl.tool == EditorTool.drawAisle) {
-      setState(() => ctrl.startAislePoint(world));
-      widget.onChanged();
-      return;
-    }
-
-    // --- SELECT mode
-    didDrag = false;
-
-    // 1) POI first
-    final poi = ctrl.hitTestPoi(world.dx, world.dy);
-    if (poi != null) {
-      setState(() => ctrl.selectPoi(poi.id));
-      widget.onChanged();
-
-      setState(() => ctrl.startMovePoi(poi, world.dx, world.dy));
-      widget.onChanged();
-      return;
-    }
-
-    // 2) NEW: walls/aisles selection by click (only in select tool)
     if (ctrl.tool == EditorTool.select) {
-      final wallIdx = ctrl.hitTestWallIndex(world, thresholdWorld: 8 / zoom);
-      if (wallIdx != null) {
-        setState(() => ctrl.selectWall(wallIdx));
+      final p = ctrl.hitTestPoi(world.dx, world.dy);
+      if (p != null) {
+        setState(() {
+          ctrl.state.selectedPoiId = p.id;
+          ctrl.state.selectedZoneId = null;
+          ctrl.startMovePoi(p, world.dx, world.dy);
+        });
         widget.onChanged();
         return;
       }
-
-      final nodeIdx = ctrl.hitTestAisleNodeIndex(world, radiusWorld: 10 / zoom);
-      if (nodeIdx != null) {
-        setState(() => ctrl.selectAisleNode(nodeIdx));
+      final z = ctrl.hitTestZone(world.dx, world.dy);
+      if (z != null) {
+        setState(() {
+          ctrl.state.selectedZoneId = z.id;
+          ctrl.state.selectedPoiId = null;
+          ctrl.startMoveZone(z, world.dx, world.dy);
+        });
         widget.onChanged();
         return;
       }
-
-      final edgeIdx = ctrl.hitTestAisleEdgeIndex(world, thresholdWorld: 8 / zoom);
-      if (edgeIdx != null) {
-        setState(() => ctrl.selectAisleEdge(edgeIdx));
-        widget.onChanged();
-        return;
-      }
-    }
-
-    // 3) IMPORTANT: handle test on currently selected zone first (for circle handles)
-    final selected = ctrl.selectedZone;
-    if (selected != null) {
-      final handleRadiusWorld = 10 / zoom;
-      final handle = ctrl.hitTestHandle(
-        z: selected,
-        px: world.dx,
-        py: world.dy,
-        radiusWorld: handleRadiusWorld,
-      );
-      if (handle != null) {
-        setState(() => ctrl.startResize(selected, handle, world.dx, world.dy));
-        widget.onChanged();
-        return;
-      }
-    }
-
-    // 4) zones
-    final z = ctrl.hitTestZone(world.dx, world.dy);
-    if (z == null) {
-      setState(() => ctrl.clearSelection());
+      setState(() {
+        ctrl.state.selectedPoiId = null;
+        ctrl.state.selectedZoneId = null;
+      });
       widget.onChanged();
       return;
     }
-
-    setState(() => ctrl.selectZone(z.id));
-    widget.onChanged();
-
-    final handleRadiusWorld = 10 / zoom;
-    final handle = ctrl.hitTestHandle(
-      z: z,
-      px: world.dx,
-      py: world.dy,
-      radiusWorld: handleRadiusWorld,
-    );
-    if (handle != null) {
-      setState(() => ctrl.startResize(z, handle, world.dx, world.dy));
-      widget.onChanged();
-      return;
+    if (ctrl.tool == EditorTool.drawRect) {
+      setState(() => ctrl.startDrawZone(ZoneShape.rect, world));
+    } else if (ctrl.tool == EditorTool.drawCircle) {
+      setState(() => ctrl.startDrawZone(ZoneShape.circle, world));
     }
-
-    setState(() => ctrl.startMove(z, world.dx, world.dy));
-    widget.onChanged();
   }
-
-  void _openPopupOnRightClick(Offset localPos) {
-    _openPoiPopupIfAny(localPos);
-
-    _openZonePopupIfAny(localPos);
-  }
-
-
   void onPointerMove(PointerMoveEvent e) {
-    if (isMiddlePanning && lastPanPos != null) {
-      final delta = e.localPosition - lastPanPos!;
+    if (isPanning) {
       setState(() {
-        pan += delta;
-        lastPanPos = e.localPosition;
+        pan += e.delta;
       });
-      widget.onChanged();
       return;
     }
-
     final world = screenToWorld(e.localPosition);
-
-    // previews wall/aisle
-    if (ctrl.tool == EditorTool.drawWall && ctrl.isDrawingWall) {
-      setState(() => ctrl.updateWallPreview(world));
-      widget.onChanged();
-      return;
-    }
-    if (ctrl.tool == EditorTool.drawAisle && ctrl.isDrawingAisle) {
-      setState(() => ctrl.updateAislePreview(world));
-      widget.onChanged();
-      return;
-    }
-
-    // drawing rect/circle
-    if (ctrl.isDrawingRect) {
-      setState(() => ctrl.updateRect(world.dx, world.dy));
-      widget.onChanged();
-      return;
-    }
-    if (ctrl.isDrawingCircle) {
-      setState(() => ctrl.updateCircle(world.dx, world.dy));
-      widget.onChanged();
-      return;
-    }
-
-    // moving POI
-    final poiId = ctrl.selectedPoiId;
-    if (poiId != null && ctrl.isMovingPoi) {
-      final poi = ctrl.poiById(poiId);
-      if (poi != null) {
-        final changed = ctrl.updateMovePoi(poi, world.dx, world.dy);
-        if (changed) didDrag = true;
-        setState(() {});
-        widget.onChanged();
-        return;
-      }
-    }
-
-    // move/resize zones
-    final z = ctrl.selectedZone;
-    if (z != null && ctrl.isMoving) {
-      final changed = ctrl.updateMove(z, world.dx, world.dy);
-      if (changed) didDrag = true;
-      setState(() {});
-      widget.onChanged();
-      return;
-    }
-
-    if (z != null && ctrl.isResizing) {
-      final changed = ctrl.updateResize(z, world.dx, world.dy);
-      if (changed) didDrag = true;
-      setState(() {});
-      widget.onChanged();
-      return;
-    }
-  }
-
-  Future<void> onPointerUp(PointerUpEvent e) async {
-    if (isMiddlePanning) {
-      setState(() {
-        isMiddlePanning = false;
-        lastPanPos = null;
-      });
-      widget.onChanged();
-      return;
-    }
-
-    // finish RECT
-    if (ctrl.tool == EditorTool.drawRect && ctrl.isDrawingRect) {
-      if (ctrl.previewZone != null &&
-          ctrl.previewZone!.w >= ctrl.gridSize &&
-          ctrl.previewZone!.h >= ctrl.gridSize) {
-        final name = await _promptZoneName();
-        if (name == null || name.trim().isEmpty) {
-          setState(() => ctrl.cancelDrawing());
+    if (ctrl.tool == EditorTool.select) {
+      if (ctrl.pois.isMoving && ctrl.state.selectedPoiId != null) {
+        final p = ctrl.poiById(ctrl.state.selectedPoiId!);
+        if (p != null && ctrl.updateMovePoi(p, world.dx, world.dy)) {
+          setState(() {});
           widget.onChanged();
-          return;
         }
-        setState(() => ctrl.finishRect(zoneName: name.trim()));
-        widget.onChanged();
-      } else {
-        setState(() => ctrl.cancelDrawing());
-        widget.onChanged();
-      }
-      return;
-    }
-
-    // finish CIRCLE
-    if (ctrl.tool == EditorTool.drawCircle && ctrl.isDrawingCircle) {
-      if (ctrl.previewZone != null &&
-          ctrl.previewZone!.w >= ctrl.gridSize &&
-          ctrl.previewZone!.h >= ctrl.gridSize) {
-        final name = await _promptZoneName();
-        if (name == null || name.trim().isEmpty) {
-          setState(() => ctrl.cancelDrawing());
+      } else if (ctrl.zones.movingZone != null) {
+        final z = ctrl.zones.movingZone!;
+        if (ctrl.updateMoveZone(z, world.dx, world.dy)) {
+          setState(() {});
           widget.onChanged();
-          return;
         }
-        setState(() => ctrl.finishCircle(zoneName: name.trim()));
-        widget.onChanged();
-      } else {
-        setState(() => ctrl.cancelDrawing());
-        widget.onChanged();
       }
       return;
     }
-
-    // finish move POI
-    if (ctrl.isMovingPoi) {
-      setState(() => ctrl.finishMovePoi());
-      widget.onChanged();
-    }
-
-    // finish move/resize zones
-    if (ctrl.isMoving) {
-      setState(() => ctrl.finishMove());
-      widget.onChanged();
-    }
-    if (ctrl.isResizing) {
-      setState(() => ctrl.finishResize());
-      widget.onChanged();
+    if (ctrl.isDrawingZone) {
+      setState(() => ctrl.updateDrawZone(world));
     }
   }
-
-  void onWheel(PointerSignalEvent e) {
-    if (e is! PointerScrollEvent) return;
-
-    final delta = e.scrollDelta.dy;
-    final factor = (delta > 0) ? 0.9 : 1.1;
-    final newZoom = (zoom * factor).clamp(0.4, 3.0);
-
-    final mouse = e.localPosition;
-    final worldBefore = screenToWorld(mouse);
-
-    setState(() {
-      zoom = newZoom;
-      final worldAfter = screenToWorld(mouse);
-      pan += (worldAfter - worldBefore) * zoom;
-    });
-    widget.onChanged();
-  }
-
-  void handleHover(Offset localPos) {
-    final world = screenToWorld(localPos);
-
-    setState(() {
-      ctrl.updateHover(world.dx, world.dy);
-
-      final hp = ctrl.hoveredPoiId == null ? null : ctrl.poiById(ctrl.hoveredPoiId!);
-      if (hp != null) {
-        hoverText = _poiTooltip(hp);
-        hoverPos = localPos;
-        return;
+  void onPointerUp(PointerUpEvent e) {
+    isPanning = false;
+    if (ctrl.tool == EditorTool.select) {
+      if (ctrl.pois.isMoving) {
+        setState(() => ctrl.finishMovePoi());
+        widget.onChanged();
+      } else if (ctrl.zones.movingZone != null) {
+        setState(() => ctrl.finishMoveZone());
+        widget.onChanged();
       }
-
-      final hz = ctrl.hoveredZoneId == null ? null : ctrl.zoneById(ctrl.hoveredZoneId!);
-      if (hz != null) {
-        hoverText = '${hz.name} • ${ctrl.categoryById(hz.categoryId).name}';
-        hoverPos = localPos;
-      } else {
-        hoverText = null;
-        hoverPos = null;
-      }
-    });
+    }
+    if (ctrl.isDrawingZone) {
+      setState(() => ctrl.finishDrawZone());
+      widget.onChanged();
+    }
   }
-
-  String _poiTooltip(StorePoi p) {
-    if (p.type == PoiType.entry) return 'Entree';
-    if (p.type == PoiType.exit) return 'Sortie';
-
-    final kind = p.checkoutKind == CheckoutKind.selfCheckout ? 'Auto' : 'Caissiere';
-    final pay = p.paymentMode == PaymentMode.cardOnly ? 'CB' : 'CB+€';
-    final pmr = p.isAccessible ? ' • PMR' : '';
-    final title = p.label.isEmpty ? 'Caisse' : p.label;
-    return '$title • $kind • $pay$pmr';
+  void onPointerHover(PointerHoverEvent e) {
+    final world = screenToWorld(e.localPosition);
+    ctrl.pois.updateHover(world.dx, world.dy);
+    setState(() {});
   }
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        MouseRegion(
-          onHover: (ev) => handleHover(ev.localPosition),
-          onExit: (_) => setState(() {
-            ctrl.clearHover();
-            hoverText = null;
-            hoverPos = null;
-          }),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-
-            // CLIC DROIT : ouvrir popup (zones + POI)
-            onSecondaryTapDown: (details) {
-              if (ctrl.tool != EditorTool.select) return;
-              _openPopupOnRightClick(details.localPosition);
-            },
-
-            // DOUBLE CLIC : on le garde uniquement pour murs / allees
-            onDoubleTapDown: (details) {
-              if (ctrl.tool == EditorTool.drawWall) {
-                setState(() => ctrl.finishWall());
-                widget.onChanged();
-                return;
-              }
-              if (ctrl.tool == EditorTool.drawAisle) {
-                setState(() => ctrl.finishAisle());
-                widget.onChanged();
-                return;
-              }
-
-
-            },
-
-            child: Listener(
-              onPointerDown: onPointerDown,
-              onPointerMove: onPointerMove,
-              onPointerUp: (e) => onPointerUp(e),
-              onPointerSignal: onWheel,
-              child: CustomPaint(
-                painter: StoreMapPainter(ctrl: ctrl, zoom: zoom, pan: pan),
+    final painter = StoreMapPainter(
+      ctrl: ctrl,
+      scale: scale,
+      pan: pan,
+    );
+    return Listener(
+      onPointerSignal: onPointerSignal,
+      onPointerDown: onPointerDown,
+      onPointerMove: onPointerMove,
+      onPointerUp: onPointerUp,
+      onPointerHover: onPointerHover,
+      child: MouseRegion(
+        cursor: isPanning ? SystemMouseCursors.grabbing : SystemMouseCursors.precise,
+        child: Container(
+          color: Colors.grey.shade50,
+          width: double.infinity,
+          height: double.infinity,
+          child: Stack(
+            children: [
+              CustomPaint(
+                painter: painter,
                 child: const SizedBox.expand(),
               ),
-            ),
+            ],
           ),
-
         ),
-
-        if (hoverText != null && hoverPos != null)
-          StoreMapTooltip(
-            left: hoverPos!.dx + 12,
-            top: hoverPos!.dy + 12,
-            text: hoverText!,
-          ),
-      ],
+      ),
     );
   }
 }

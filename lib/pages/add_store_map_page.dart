@@ -5,8 +5,9 @@ import 'package:latlong2/latlong.dart';
 import '../models/store.dart';
 import '../services/store_service.dart';
 
-// page de création de magasin via une carte (tap pour ajouter un magasin à l'emplacement tapé, ou bouton pour saisie manuelle)
-
+// page pour créer un magasin en cliquant sur une carte
+// soit tu cliques directement sur la carte à la position souhaitée
+// soit tu appuies sur le bouton pour saisir manuellement les coordonnées
 class AddStoreMapPage extends StatefulWidget {
   final StoreService storeService;
 
@@ -16,16 +17,18 @@ class AddStoreMapPage extends StatefulWidget {
   });
 
   @override
-  State<AddStoreMapPage> createState() => _AddStoreMapPageState();
+  State<AddStoreMapPage> createState() => AddStoreMapPageState();
 }
 
-class _AddStoreMapPageState extends State<AddStoreMapPage> {
-  LatLng _center = const LatLng(48.8566, 2.3522);
+class AddStoreMapPageState extends State<AddStoreMapPage> {
+  LatLng center = const LatLng(48.8566, 2.3522);
 
-  Future<void> _openCreateForm({LatLng? latLng}) async {
+  // ouvre un dialog pour créer le magasin avec les coordonnées optionnelles
+  // si tu cliques sur la carte, il pré-remplit avec tes coordonnées
+  Future<void> openCreateForm({LatLng? latLng}) async {
     final created = await showDialog<Store>(
       context: context,
-      builder: (_) => _CreateStoreDialog(
+      builder: (dialogContext) => CreateStoreDialog(
         initialLat: latLng?.latitude,
         initialLng: latLng?.longitude,
       ),
@@ -39,9 +42,6 @@ class _AddStoreMapPageState extends State<AddStoreMapPage> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur création: $e')),
-      );
     }
   }
 
@@ -53,16 +53,16 @@ class _AddStoreMapPageState extends State<AddStoreMapPage> {
         actions: [
           IconButton(
             tooltip: 'Saisie manuelle',
-            onPressed: () => _openCreateForm(latLng: null),
+            onPressed: () => openCreateForm(latLng: null),
             icon: const Icon(Icons.edit_location_alt),
           ),
         ],
       ),
       body: FlutterMap(
         options: MapOptions(
-          center: _center,
-          zoom: 13,
-          onTap: (_, latLng) => _openCreateForm(latLng: latLng),
+          initialCenter: center,
+          initialZoom: 13,
+          onTap: (tapPosition, latLng) => openCreateForm(latLng: latLng),
         ),
         children: [
           TileLayer(
@@ -75,49 +75,51 @@ class _AddStoreMapPageState extends State<AddStoreMapPage> {
   }
 }
 
-class _CreateStoreDialog extends StatefulWidget {
+class CreateStoreDialog extends StatefulWidget {
   final double? initialLat;
   final double? initialLng;
 
-  const _CreateStoreDialog({this.initialLat, this.initialLng});
+  const CreateStoreDialog({this.initialLat, this.initialLng});
 
+  // dialog avec un formulaire pour remplir le nom du magasin et ses coordonnées GPS
+  // si tu cliquais sur la carte, il pré-remplit lat/lng
   @override
-  State<_CreateStoreDialog> createState() => _CreateStoreDialogState();
+  State<CreateStoreDialog> createState() => CreateStoreDialogState();
 }
 
-class _CreateStoreDialogState extends State<_CreateStoreDialog> {
-  final _nameCtrl = TextEditingController();
-  late final TextEditingController _latCtrl;
-  late final TextEditingController _lngCtrl;
-
-  String? _error;
+class CreateStoreDialogState extends State<CreateStoreDialog> {
+  TextEditingController nameCtrl = TextEditingController();
+  late TextEditingController latCtrl;
+  late TextEditingController lngCtrl;
+  String error = '';
 
   @override
   void initState() {
     super.initState();
-    _latCtrl = TextEditingController(text: widget.initialLat?.toStringAsFixed(6) ?? '');
-    _lngCtrl = TextEditingController(text: widget.initialLng?.toStringAsFixed(6) ?? '');
+    latCtrl = TextEditingController(text: widget.initialLat?.toStringAsFixed(6) ?? '');
+    lngCtrl = TextEditingController(text: widget.initialLng?.toStringAsFixed(6) ?? '');
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _latCtrl.dispose();
-    _lngCtrl.dispose();
+    nameCtrl.dispose();
+    latCtrl.dispose();
+    lngCtrl.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    final name = _nameCtrl.text.trim();
-    final lat = double.tryParse(_latCtrl.text.replaceAll(',', '.'));
-    final lng = double.tryParse(_lngCtrl.text.replaceAll(',', '.'));
+  void submit() {
+    // valide et envoie le formulaire de création du magasin à l'API
+    final name = nameCtrl.text.trim();
+    final lat = double.tryParse(latCtrl.text.replaceAll(',', '.'));
+    final lng = double.tryParse(lngCtrl.text.replaceAll(',', '.'));
 
     if (name.isEmpty) {
-      setState(() => _error = 'Le nom est obligatoire');
+      setState(() => error = 'Le nom est obligatoire');
       return;
     }
     if (lat == null || lng == null) {
-      setState(() => _error = 'Latitude/Longitude invalides');
+      setState(() => error = 'Latitude/Longitude invalides');
       return;
     }
 
@@ -133,13 +135,16 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Nom')),
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: 'Nom'),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _latCtrl,
+                    controller: latCtrl,
                     decoration: const InputDecoration(labelText: 'Latitude'),
                     keyboardType: TextInputType.number,
                   ),
@@ -147,18 +152,18 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
-                    controller: _lngCtrl,
+                    controller: lngCtrl,
                     decoration: const InputDecoration(labelText: 'Longitude'),
                     keyboardType: TextInputType.number,
                   ),
                 ),
               ],
             ),
-            if (_error != null) ...[
+            if (error.isNotEmpty) ...[
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                child: Text(error, style: const TextStyle(color: Colors.red)),
               ),
             ],
           ],
@@ -166,7 +171,7 @@ class _CreateStoreDialogState extends State<_CreateStoreDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-        ElevatedButton(onPressed: _submit, child: const Text('Créer')),
+        ElevatedButton(onPressed: submit, child: const Text('Créer')),
       ],
     );
   }
