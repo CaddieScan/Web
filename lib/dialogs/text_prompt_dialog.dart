@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-// Un dialog simple pour demander une saisie textuelle à l'utilisateur
-// pour par exemple renommer une catégorie ou un étage, ou créer une nouvelle catégorie avec un nom donné
-
+// un simple dialog pour demander un texte à l'utilisateur
+// utilisé pour renommer des catégories, des étages, ou créer une nouvelle catégorie avec un nom
 class TextPromptDialog extends StatefulWidget {
   final String title;
   final String hint;
@@ -16,12 +15,12 @@ class TextPromptDialog extends StatefulWidget {
   });
 
   @override
-  State<TextPromptDialog> createState() => _TextPromptDialogState();
+  State<TextPromptDialog> createState() => TextPromptDialogState();
 }
 
-class _TextPromptDialogState extends State<TextPromptDialog> {
-  late final TextEditingController ctrl;
-  String? error;
+class TextPromptDialogState extends State<TextPromptDialog> {
+  late TextEditingController ctrl;
+  String error = '';
 
   @override
   void initState() {
@@ -36,6 +35,7 @@ class _TextPromptDialogState extends State<TextPromptDialog> {
   }
 
   void submit() {
+    // valide le texte et ferme le dialog en le retournant
     final v = ctrl.text.trim();
     if (v.isEmpty) {
       setState(() => error = 'Champ obligatoire');
@@ -57,9 +57,9 @@ class _TextPromptDialogState extends State<TextPromptDialog> {
               controller: ctrl,
               decoration: InputDecoration(
                 labelText: widget.hint,
-                errorText: error,
+                errorText: error.isEmpty ? null : error,
               ),
-              onSubmitted: (_) => submit(),
+              onSubmitted: (submittedValue) => submit(),
             ),
           ],
         ),

@@ -1,38 +1,36 @@
+﻿import '../store_map_controller.dart';
 import '../store_map_data.dart';
 import '../store_map_state.dart';
-
-class StoreMapSnapshot {
+class UndoState {
   final StoreMapState state;
   final StoreMapData data;
-
-  StoreMapSnapshot({required this.state, required this.data});
+  UndoState({required this.state, required this.data});
 }
-
 class UndoManager {
-  final List<StoreMapSnapshot> _undo = [];
+  final StoreMapController ctrl;
   final int maxSize;
-
-  UndoManager({this.maxSize = 60});
-
-  bool get canUndo => _undo.isNotEmpty;
-
-  void clear() => _undo.clear();
-
-  void push(StoreMapState state, StoreMapData data) {
-    _undo.add(
-      StoreMapSnapshot(
-        state: state.deepCopy(),
-        data: data.deepCopy(),
-      ),
-    );
-
-    if (_undo.length > maxSize) {
-      _undo.removeAt(0);
+  final List<UndoState> _history = [];
+  UndoManager(this.ctrl, {this.maxSize = 60});
+  bool get canUndo => _history.length > 1;
+  void saveState() {
+    _history.add(UndoState(
+      state: ctrl.state.deepCopy(),
+      data: ctrl.data.deepCopy(),
+    ));
+    if (_history.length > maxSize) {
+      _history.removeAt(0);
     }
   }
-
-  StoreMapSnapshot? undo() {
-    if (_undo.isEmpty) return null;
-    return _undo.removeLast();
+  void undo() {
+    if (!canUndo) return;
+    _history.removeLast();
+    final last = _history.last;
+    ctrl.state.loadFrom(last.state);
+    ctrl.data = last.data.deepCopy();
+    ctrl.zones.isDrawing = false;
+    ctrl.zones.movingZone = null;
+    ctrl.pois.movingPoi = null;
+    ctrl.selectedZoneId == null;
+    ctrl.selectedPoiId == null;
   }
 }

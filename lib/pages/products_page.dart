@@ -7,9 +7,16 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../models/store.dart';
 import '../services/product_service.dart';
+import '../utils/error_handler.dart';
 
-// Page de gestion des produits d'un magasin
+// URL où l'API sert les images des produits
+const apiHost = 'http://localhost:8000';
+// image par défaut pour les produits sans image précisée
+const placeholderImg = 'images/product_placeholder.png';
 
+// page pour gérer les produits d'un magasin
+// tu peux en ajouter, modifier, supprimer, ou importer un tas via CSV
+// t'as aussi une recherche et un filtre par catégorie
 class ProductsPage extends StatefulWidget {
   final Store store;
   final ProductService productService;
@@ -21,43 +28,42 @@ class ProductsPage extends StatefulWidget {
   });
 
   @override
-  State<ProductsPage> createState() => _ProductsPageState();
+  State<ProductsPage> createState() => ProductsPageState();
 }
 
-class _ProductsPageState extends State<ProductsPage> {
-  static const String _apiHost = 'http://localhost:8000';
-  static const String _placeholderImg = 'images/product_placeholder.png';
-  bool _loading = true;
-  String? _error;
-
-  List<Product> _all = [];
-  String _search = '';
-  String _category = 'Tous';
+class ProductsPageState extends State<ProductsPage> {
+  bool loading = true;
+  String error = '';
+  List<Product> all = [];
+  String search = '';
+  String category = 'Tous';
 
   @override
   void initState() {
     super.initState();
-    _load();
+    load();
   }
 
-  Future<void> _load() async {
+  Future<void> load() async {
     try {
       final items = await widget.productService.fetchProducts(widget.store.id);
       setState(() {
-        _all = items;
-        _loading = false;
+        all = items;
+        loading = false;
       });
     } catch (e) {
       setState(() {
-        _error = '$e';
-        _loading = false;
+        error = '$e';
+        loading = false;
       });
     }
   }
 
-  List<String> get _categories {
+  List<String> get categories {
+    // récupère les catégories uniques avec "Tous" en premier
+    // comme ça tu peux filtrer les produits par catégorie
     final set = <String>{'Tous'};
-    for (final p in _all) {
+    for (final p in all) {
       set.add(p.category);
     }
     final list = set.toList();
@@ -65,45 +71,43 @@ class _ProductsPageState extends State<ProductsPage> {
     return list;
   }
 
-  List<Product> get _filtered {
-    return _all.where((p) {
-      final matchSearch =
-          _search.isEmpty || p.name.toLowerCase().contains(_search.toLowerCase());
-      final matchCat = _category == 'Tous' || p.category == _category;
+  List<Product> get filtered {
+    // filtre en fonction de ta recherche ET la catégorie sélectionnée
+    // tu modifies la recherche ou la catégorie, la liste se rafraîchit direct
+    return all.where((p) {
+      final matchSearch = search.isEmpty || p.name.toLowerCase().contains(search.toLowerCase());
+      final matchCat = category == 'Tous' || p.category == category;
       return matchSearch && matchCat;
     }).toList();
   }
 
-  Future<void> _addNewProduct() async {
-    final action = await showDialog<_ProductDialogAction>(
+  // ouvre un dialog pour créer un nouveau produit
+  Future<void> addNewProduct() async {
+    final action = await showDialog<ProductDialogAction>(
       context: context,
-      builder: (_) => const _ProductDialog(),
+      builder: (dialogContext) => const ProductDialog(),
     );
 
     final created = action?.product;
     if (created == null) return;
 
-    // On force storeId + placeholder ici pour être sûr
     final toSave = created.copyWith(
       storeId: widget.store.id,
-      imageAssetPath: created.imageAssetPath.isEmpty ? _placeholderImg : created.imageAssetPath,
+      imageAssetPath: created.imageAssetPath.isEmpty ? placeholderImg : created.imageAssetPath,
     );
 
     try {
       await widget.productService.addProduct(toSave);
-      await _load();
+      await load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur ajout produit: $e')),
-      );
     }
   }
 
-  Future<void> _editProduct(Product product) async {
-    final action = await showDialog<_ProductDialogAction>(
+  Future<void> editProduct(Product product) async {
+    final action = await showDialog<ProductDialogAction>(
       context: context,
-      builder: (_) => _ProductDialog(product: product),
+      builder: (dialogContext) => ProductDialog(product: product),
     );
 
     if (action == null) return;
@@ -111,12 +115,9 @@ class _ProductsPageState extends State<ProductsPage> {
     if (action.delete) {
       try {
         await widget.productService.deleteProduct(widget.store.id, product.id);
-        await _load();
+        await load();
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur suppression produit: $e')),
-        );
       }
       return;
     }
@@ -127,23 +128,18 @@ class _ProductsPageState extends State<ProductsPage> {
     final toSave = updated.copyWith(
       id: product.id,
       storeId: widget.store.id,
-      imageAssetPath: updated.imageAssetPath.isEmpty
-          ? _placeholderImg
-          : updated.imageAssetPath,
+      imageAssetPath: updated.imageAssetPath.isEmpty ? placeholderImg : updated.imageAssetPath,
     );
 
     try {
       await widget.productService.updateProduct(toSave);
-      await _load();
+      await load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur modification produit: $e')),
-      );
     }
   }
 
-  Future<void> _importCsv() async {
+  Future<void> importCsv() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
@@ -156,11 +152,8 @@ class _ProductsPageState extends State<ProductsPage> {
     if (bytes == null) return;
 
     final raw = utf8.decode(bytes, allowMalformed: true);
-
-    // Normalise les fins de ligne Windows
     final content = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 
-    // Détecte le séparateur le plus probable via la 1ère ligne non vide
     final firstNonEmptyLine = content
         .split('\n')
         .map((l) => l.trim())
@@ -168,9 +161,7 @@ class _ProductsPageState extends State<ProductsPage> {
 
     if (firstNonEmptyLine.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('CSV vide ou illisible.')),
-      );
+      ErrorHandler.showError('CSV vide ou illisible.');
       return;
     }
 
@@ -186,21 +177,13 @@ class _ProductsPageState extends State<ProductsPage> {
 
     if (rows.isEmpty) return;
 
-    // Helpers
     String norm(String s) => s.trim().toLowerCase();
 
-    // Mappe des noms de colonnes possibles vers nos champs internes
-    int? colName;
-    int? colCategory;
-    int? colPrice;
-    int? colQty;
-    int? colUnit;
-
-    // Détecte header si la première ligne contient du texte "name/nom/..."
+    int? colName, colCategory, colPrice, colQty, colUnit;
     final header = rows.first.map((e) => norm(e.toString())).toList();
 
     bool looksLikeHeader = header.any((h) =>
-    h.contains('name') ||
+        h.contains('name') ||
         h.contains('nom') ||
         h.contains('product') ||
         h.contains('produit') ||
@@ -216,92 +199,63 @@ class _ProductsPageState extends State<ProductsPage> {
 
     int startIndex = looksLikeHeader ? 1 : 0;
 
-    // Si header, on repère les colonnes par nom (dans n'importe quel ordre)
     if (looksLikeHeader) {
       for (int i = 0; i < header.length; i++) {
         final h = header[i];
 
-        // name
-        if (colName == null &&
-            (h == 'name' || h == 'nom' || h.contains('product') || h.contains('produit'))) {
+        if (colName == null && (h == 'name' || h == 'nom' || h.contains('product') || h.contains('produit'))) {
           colName = i;
         }
 
-        // category
-        if (colCategory == null &&
-            (h == 'category' || h == 'categorie' || h.contains('categ'))) {
+        if (colCategory == null && (h == 'category' || h == 'categorie' || h.contains('categ'))) {
           colCategory = i;
         }
 
-        // price
-        if (colPrice == null &&
-            (h == 'price' || h == 'prix' || h.contains('tarif'))) {
+        if (colPrice == null && (h == 'price' || h == 'prix' || h.contains('tarif'))) {
           colPrice = i;
         }
 
-        // quantity / stock
-        if (colQty == null &&
-            (h == 'quantity' || h == 'qty' || h == 'stock' || h.contains('quant'))) {
+        if (colQty == null && (h == 'quantity' || h == 'qty' || h == 'stock' || h.contains('quant'))) {
           colQty = i;
         }
 
-        // unit
         if (colUnit == null && (h == 'unit' || h == 'unite' || h.contains('uom'))) {
           colUnit = i;
         }
       }
-    } else {
-      // Pas de header => on suppose l'ordre:
-      // name, category, price, quantity, unit
-      colName = 0;
-      colCategory = 1;
-      colPrice = 2;
-      colQty = 3;
-      colUnit = 4;
     }
 
-    // On exige au minimum un "name"
-    if (colName == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'CSV invalide: colonne "name/nom" introuvable. '
-                'Separateur detecte: "$delimiter".',
-          ),
-        ),
-      );
-      return;
-    }
+    colName ??= 0;
+    colCategory ??= 1;
+    colPrice ??= 2;
+    colQty ??= 3;
+    colUnit ??= 4;
 
     final toAdd = <Product>[];
     int skipped = 0;
 
-    for (int r = startIndex; r < rows.length; r++) {
-      final row = rows[r];
+    for (int i = startIndex; i < rows.length; i++) {
+      final row = rows[i];
 
-      // Sécurise accès colonnes
-      String cell(int? idx) {
-        if (idx == null) return '';
-        if (idx < 0 || idx >= row.length) return '';
-        return row[idx].toString().trim();
-      }
-
-      final name = cell(colName);
-      if (name.isEmpty) {
+      if (row.isEmpty) {
         skipped++;
         continue;
       }
 
-      final category = cell(colCategory);
-      final priceStr = cell(colPrice);
-      final qtyStr = cell(colQty);
-      final unitStr = cell(colUnit);
+      final nameStr = colName < row.length ? row[colName].toString().trim() : '';
+      final catStr = colCategory < row.length ? row[colCategory].toString().trim() : '';
+      final priceStr = colPrice < row.length ? row[colPrice].toString().trim() : '';
+      final qtyStr = colQty < row.length ? row[colQty].toString().trim() : '';
+      final unitStr = colUnit < row.length ? row[colUnit].toString().trim() : '';
 
-      final price = priceStr.isEmpty
-          ? null
-          : double.tryParse(priceStr.replaceAll(',', '.'));
+      if (nameStr.isEmpty) {
+        skipped++;
+        continue;
+      }
 
+      final name = nameStr;
+      final category_ = catStr.isEmpty ? 'Autre' : catStr;
+      final price = priceStr.isEmpty ? null : double.tryParse(priceStr.replaceAll(',', '.'));
       final qty = qtyStr.isEmpty ? 0 : int.tryParse(qtyStr) ?? 0;
       final unit = unitStr.isEmpty ? 'pcs' : unitStr;
 
@@ -309,38 +263,165 @@ class _ProductsPageState extends State<ProductsPage> {
         id: '',
         storeId: widget.store.id,
         name: name,
-        category: category.isEmpty ? 'Autre' : category,
+        category: category_,
         price: price,
         quantity: qty,
         unit: unit,
         barcode: null,
-        imageAssetPath: _placeholderImg,
+        imageAssetPath: placeholderImg,
       ));
     }
 
     if (toAdd.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Aucun produit importable. Lignes ignorees: $skipped')),
-      );
+      ErrorHandler.showError('Aucun produit importable. Lignes ignorees: $skipped');
       return;
     }
 
-    await widget.productService.addMany(toAdd);
-    await _load();
+    try {
+      await widget.productService.addMany(toAdd);
+      await load();
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Import termine: ${toAdd.length} ajoutes'
-              '${skipped > 0 ? ' ($skipped ignorees)' : ''}',
+      if (!mounted) return;
+      final msg = 'Import termine: ${toAdd.length} ajoutes'
+          '${skipped > 0 ? ' ($skipped ignorees)' : ''}';
+      ErrorHandler.showSuccess(msg);
+    } catch (e) {
+      if (!mounted) return;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    if (error.isNotEmpty) return Center(child: Text('Erreur: $error'));
+
+    final items = filtered;
+
+    return Column(
+      children: [
+        ProductToolbar(
+          categories: categories,
+          search: search,
+          category: category,
+          onSearchChanged: (v) => setState(() => search = v),
+          onCategoryChanged: (v) => setState(() => category = v),
+          onAddProduct: addNewProduct,
+          onImportCsv: importCsv,
         ),
+        const Divider(height: 1),
+        Expanded(
+          child: items.isEmpty
+              ? const Center(child: Text('Aucun produit'))
+              : ProductList(
+                  products: items,
+                  onEditProduct: editProduct,
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class ProductToolbar extends StatelessWidget {
+  final List<String> categories;
+  final String search;
+  final String category;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onCategoryChanged;
+  final VoidCallback onAddProduct;
+  final VoidCallback onImportCsv;
+
+  const ProductToolbar({
+    super.key,
+    required this.categories,
+    required this.search,
+    required this.category,
+    required this.onSearchChanged,
+    required this.onCategoryChanged,
+    required this.onAddProduct,
+    required this.onImportCsv,
+  });
+
+  // barre du haut avec la recherche, le filtre catégorie et les boutons ajouter/importer
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              onChanged: onSearchChanged,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Rechercher un produit...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          DropdownButton<String>(
+            value: category,
+            items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            onChanged: (v) => onCategoryChanged(v ?? 'Tous'),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: onAddProduct,
+            icon: const Icon(Icons.add),
+            label: const Text('Nouveau'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onImportCsv,
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Importer CSV'),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _productImage(Product product) {
+class ProductList extends StatelessWidget {
+  final List<Product> products;
+  final Function(Product) onEditProduct;
+
+  const ProductList({
+    super.key,
+    required this.products,
+    required this.onEditProduct,
+  });
+
+  // affiche les produits dans une liste avec séparateurs
+  // tu cliques sur un produit pour l'éditer
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      itemCount: products.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        final p = products[i];
+        return ProductListItem(product: p, onTap: () => onEditProduct(p));
+      },
+    );
+  }
+}
+
+class ProductListItem extends StatelessWidget {
+  final Product product;
+  final VoidCallback onTap;
+
+  const ProductListItem({
+    super.key,
+    required this.product,
+    required this.onTap,
+  });
+
+  // un seul produit avec sa photo, nom, catégorie et prix
+  // elle gère les différentes sources d'images (asset, réseau, etc.)
+  Widget buildImage() {
     final path = product.imageAssetPath.trim();
 
     Widget fallback() => Container(
@@ -356,331 +437,115 @@ class _ProductsPageState extends State<ProductsPage> {
         width: 48,
         height: 48,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback(),
+        errorBuilder: (context, error, stackTrace) => fallback(),
       );
     }
 
     if (path.startsWith('/')) {
       return Image.network(
-        '$_apiHost$path',
+        '$apiHost$path',
         width: 48,
         height: 48,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback(),
+        errorBuilder: (context, error, stackTrace) => fallback(),
       );
     }
 
     return Image.asset(
-      path.isEmpty ? _placeholderImg : path,
+      path.isEmpty ? placeholderImg : path,
       width: 48,
       height: 48,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => fallback(),
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Text('Erreur: $_error'));
-
-    final items = _filtered;
-
-    return Column(
-      children: [
-        // Barre outils
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
-                    hintText: 'Rechercher un produit...',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (v) => setState(() => _search = v),
-                ),
-              ),
-              const SizedBox(width: 12),
-              DropdownButton<String>(
-                value: _category,
-                items: _categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _category = v ?? 'Tous'),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _addNewProduct,
-                icon: const Icon(Icons.add),
-                label: const Text('Nouveau'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _importCsv,
-                icon: const Icon(Icons.upload_file),
-                label: const Text('Importer CSV'),
-              ),
-            ],
-          ),
-        ),
-
-        const Divider(height: 1),
-
-        // Liste
-        Expanded(
-          child: items.isEmpty
-              ? const Center(child: Text('Aucun produit'))
-              : ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final p = items[i];
-
-              return ListTile(
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _productImage(p),
-                ),
-                title: Text(p.name),
-                onTap: () => _editProduct(p),
-                subtitle: Text('${p.category} • Stock: ${p.quantity} ${p.unit}'),
-                trailing: p.price == null
-                    ? null
-                    : Text('${p.price!.toStringAsFixed(2)} €'),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CreateProductDialog extends StatefulWidget {
-  const _CreateProductDialog();
-
-  @override
-  State<_CreateProductDialog> createState() => _CreateProductDialogState();
-}
-
-class _CreateProductDialogState extends State<_CreateProductDialog> {
-  static const String _placeholderImg = 'images/product_placeholder.png';
-  final _nameCtrl = TextEditingController();
-  final _catCtrl = TextEditingController(text: 'Autre');
-  final _priceCtrl = TextEditingController();
-
-  final _qtyCtrl = TextEditingController(text: '1');
-  final _unitCtrl = TextEditingController(text: 'pcs');
-
-  String? _error;
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _catCtrl.dispose();
-    _priceCtrl.dispose();
-    _qtyCtrl.dispose();
-    _unitCtrl.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final name = _nameCtrl.text.trim();
-    final cat = _catCtrl.text.trim();
-    final priceStr = _priceCtrl.text.trim();
-
-    if (name.isEmpty) {
-      setState(() => _error = 'Nom obligatoire');
-      return;
-    }
-
-    final price = priceStr.isEmpty
-        ? null
-        : double.tryParse(priceStr.replaceAll(',', '.'));
-
-    final qty = int.tryParse(_qtyCtrl.text.trim());
-    final unit = _unitCtrl.text.trim();
-
-    if (qty == null || qty < 0) {
-      setState(() => _error = 'Quantite invalide');
-      return;
-    }
-    if (unit.isEmpty) {
-      setState(() => _error = 'Unite obligatoire');
-      return;
-    }
-
-    // storeId sera forcé par ProductsPage au moment de sauvegarder
-    Navigator.pop(
-      context,
-      Product(
-        id: '',
-        storeId: '',
-        name: name,
-        category: cat.isEmpty ? 'Autre' : cat,
-        price: price,
-        quantity: qty,
-        unit: unit,
-        barcode: null,
-        imageAssetPath: _placeholderImg,
-      ),
+      errorBuilder: (context, error, stackTrace) => fallback(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Nouveau produit'),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nom'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _catCtrl,
-              decoration: const InputDecoration(labelText: 'Categorie'),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _qtyCtrl,
-                    decoration: const InputDecoration(labelText: 'Quantite (stock)'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _unitCtrl,
-                    decoration: const InputDecoration(labelText: 'Unite (pcs, kg, L...)'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _priceCtrl,
-              decoration: const InputDecoration(labelText: 'Prix (optionnel)'),
-              keyboardType: TextInputType.number,
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
-              ),
-            ],
-          ],
-        ),
+    return ListTile(
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: buildImage(),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        ElevatedButton(
-          onPressed: _submit,
-          child: const Text('Ajouter'),
-        ),
-      ],
+      title: Text(product.name),
+      subtitle: Text('${product.category} • Stock: ${product.quantity} ${product.unit}'),
+      trailing: product.price == null ? null : Text('${product.price!.toStringAsFixed(2)} €'),
+      onTap: onTap,
     );
   }
 }
 
-class _ProductDialogAction {
-  final Product? product;
-  final bool delete;
-
-  const _ProductDialogAction.save(this.product) : delete = false;
-  const _ProductDialogAction.delete()
-      : product = null,
-        delete = true;
-}
-
-class _ProductDialog extends StatefulWidget {
+class ProductDialog extends StatefulWidget {
   final Product? product;
 
-  const _ProductDialog({this.product});
+  const ProductDialog({this.product});
 
+  // un dialog soit pour créer un nouveau produit, soit pour modifier un existant
+  // tu remplis tous les champs et tu appuies sur "Ajouter" ou "Enregistrer"
   @override
-  State<_ProductDialog> createState() => _ProductDialogState();
+  State<ProductDialog> createState() => ProductDialogState();
 }
 
-class _ProductDialogState extends State<_ProductDialog> {
-  static const String _placeholderImg = 'images/product_placeholder.png';
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _catCtrl;
-  late final TextEditingController _priceCtrl;
-  late final TextEditingController _qtyCtrl;
-  late final TextEditingController _unitCtrl;
+class ProductDialogState extends State<ProductDialog> {
+  late TextEditingController nameCtrl;
+  late TextEditingController catCtrl;
+  late TextEditingController priceCtrl;
+  late TextEditingController qtyCtrl;
+  late TextEditingController unitCtrl;
+  String error = '';
 
-  String? _error;
-
-  bool get _isEdit => widget.product != null;
+  bool get isEdit => widget.product != null;
 
   @override
   void initState() {
     super.initState();
     final product = widget.product;
-    _nameCtrl = TextEditingController(text: product?.name ?? '');
-    _catCtrl = TextEditingController(text: product?.category ?? 'Autre');
-    _priceCtrl = TextEditingController(
+    nameCtrl = TextEditingController(text: product?.name ?? '');
+    catCtrl = TextEditingController(text: product?.category ?? 'Autre');
+    priceCtrl = TextEditingController(
       text: product?.price == null ? '' : product!.price!.toString(),
     );
-    _qtyCtrl = TextEditingController(text: product?.quantity.toString() ?? '1');
-    _unitCtrl = TextEditingController(text: product?.unit ?? 'pcs');
+    qtyCtrl = TextEditingController(text: product?.quantity.toString() ?? '1');
+    unitCtrl = TextEditingController(text: product?.unit ?? 'pcs');
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _catCtrl.dispose();
-    _priceCtrl.dispose();
-    _qtyCtrl.dispose();
-    _unitCtrl.dispose();
+    nameCtrl.dispose();
+    catCtrl.dispose();
+    priceCtrl.dispose();
+    qtyCtrl.dispose();
+    unitCtrl.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    final name = _nameCtrl.text.trim();
-    final cat = _catCtrl.text.trim();
-    final priceStr = _priceCtrl.text.trim();
+  void submit() {
+    final name = nameCtrl.text.trim();
+    final cat = catCtrl.text.trim();
+    final priceStr = priceCtrl.text.trim();
 
     if (name.isEmpty) {
-      setState(() => _error = 'Nom obligatoire');
+      setState(() => error = 'Nom obligatoire');
       return;
     }
 
-    final price = priceStr.isEmpty
-        ? null
-        : double.tryParse(priceStr.replaceAll(',', '.'));
+    final price = priceStr.isEmpty ? null : double.tryParse(priceStr.replaceAll(',', '.'));
 
-    final qty = int.tryParse(_qtyCtrl.text.trim());
-    final unit = _unitCtrl.text.trim();
+    final qty = int.tryParse(qtyCtrl.text.trim());
+    final unit = unitCtrl.text.trim();
 
     if (qty == null || qty < 0) {
-      setState(() => _error = 'Quantite invalide');
+      setState(() => error = 'Quantite invalide');
       return;
     }
     if (unit.isEmpty) {
-      setState(() => _error = 'Unite obligatoire');
+      setState(() => error = 'Unite obligatoire');
       return;
     }
 
     Navigator.pop(
       context,
-      _ProductDialogAction.save(
+      ProductDialogAction.save(
         Product(
           id: widget.product?.id ?? '',
           storeId: widget.product?.storeId ?? '',
@@ -690,16 +555,16 @@ class _ProductDialogState extends State<_ProductDialog> {
           quantity: qty,
           unit: unit,
           barcode: widget.product?.barcode,
-          imageAssetPath: widget.product?.imageAssetPath ?? _placeholderImg,
+          imageAssetPath: widget.product?.imageAssetPath ?? placeholderImg,
         ),
       ),
     );
   }
 
-  Future<void> _confirmDelete() async {
+  Future<void> confirmDelete() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Supprimer le produit'),
         content: Text('Supprimer "${widget.product?.name ?? 'ce produit'}" ?'),
         actions: [
@@ -716,25 +581,25 @@ class _ProductDialogState extends State<_ProductDialog> {
     );
 
     if (ok != true || !mounted) return;
-    Navigator.pop(context, const _ProductDialogAction.delete());
+    Navigator.pop(context, const ProductDialogAction.delete());
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_isEdit ? 'Modifier produit' : 'Nouveau produit'),
+      title: Text(isEdit ? 'Modifier produit' : 'Nouveau produit'),
       content: SizedBox(
         width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _nameCtrl,
+              controller: nameCtrl,
               decoration: const InputDecoration(labelText: 'Nom'),
             ),
             const SizedBox(height: 10),
             TextField(
-              controller: _catCtrl,
+              controller: catCtrl,
               decoration: const InputDecoration(labelText: 'Categorie'),
             ),
             const SizedBox(height: 10),
@@ -742,7 +607,7 @@ class _ProductDialogState extends State<_ProductDialog> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _qtyCtrl,
+                    controller: qtyCtrl,
                     decoration: const InputDecoration(labelText: 'Quantite (stock)'),
                     keyboardType: TextInputType.number,
                   ),
@@ -750,7 +615,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
-                    controller: _unitCtrl,
+                    controller: unitCtrl,
                     decoration: const InputDecoration(labelText: 'Unite (pcs, kg, L...)'),
                   ),
                 ),
@@ -758,24 +623,24 @@ class _ProductDialogState extends State<_ProductDialog> {
             ),
             const SizedBox(height: 10),
             TextField(
-              controller: _priceCtrl,
+              controller: priceCtrl,
               decoration: const InputDecoration(labelText: 'Prix (optionnel)'),
               keyboardType: TextInputType.number,
             ),
-            if (_error != null) ...[
+            if (error.isNotEmpty) ...[
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                child: Text(error, style: const TextStyle(color: Colors.red)),
               ),
             ],
           ],
         ),
       ),
       actions: [
-        if (_isEdit)
+        if (isEdit)
           TextButton(
-            onPressed: _confirmDelete,
+            onPressed: confirmDelete,
             child: const Text('Supprimer'),
           ),
         TextButton(
@@ -783,10 +648,23 @@ class _ProductDialogState extends State<_ProductDialog> {
           child: const Text('Annuler'),
         ),
         ElevatedButton(
-          onPressed: _submit,
-          child: Text(_isEdit ? 'Enregistrer' : 'Ajouter'),
+          onPressed: submit,
+          child: Text(isEdit ? 'Enregistrer' : 'Ajouter'),
         ),
       ],
     );
   }
 }
+
+class ProductDialogAction {
+  // c'est l'action que le dialog retourne
+  // soit tu as créé/modifié un produit, soit tu l'as supprimé
+  final Product? product;
+  final bool delete;
+
+  const ProductDialogAction.save(this.product) : delete = false;
+  const ProductDialogAction.delete()
+      : product = null,
+        delete = true;
+}
+

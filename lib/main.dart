@@ -1,24 +1,19 @@
 import 'package:flutter/material.dart';
 
 import 'pages/login_page.dart';
-import 'repositories/api_product_repository.dart';
-import 'repositories/api_store_map_repository.dart';
-import 'repositories/api_store_repository.dart';
 import 'services/store_service.dart';
 import 'services/store_map_service.dart';
 import 'services/product_service.dart';
 
+// point d'entrée principal de l'app
+// on initialise les services avec l'URL de base de l'API
 void main() {
   const baseUrl = 'http://localhost:8000/api';
 
-  final storeRepo = ApiStoreRepository(baseUrl: baseUrl);
-  final storeService = StoreService(storeRepo);
-
-  final productRepo = ApiProductRepository(baseUrl: baseUrl);
-  final productService = ProductService(productRepo);
-
-  final storeMapRepo = ApiStoreMapRepository(baseUrl: baseUrl);
-  final storeMapService = StoreMapService(storeMapRepo);
+  // les services sont créés directement sans passer par les repositories
+  final storeService = StoreService(baseUrl: baseUrl);
+  final productService = ProductService(baseUrl: baseUrl);
+  final storeMapService = StoreMapService(baseUrl: baseUrl);
 
   runApp(
     MyApp(
