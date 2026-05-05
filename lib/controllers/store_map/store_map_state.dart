@@ -1,9 +1,7 @@
 ﻿import 'package:flutter/material.dart';
-import 'store_map_state.dart';
 class StoreMapState {
   EditorTool tool = EditorTool.select;
   String activeFloorId = '';
-  String activeCategoryId = '';
   String? selectedZoneId;
   String? selectedPoiId;
   bool snapToGrid = true;
@@ -24,7 +22,6 @@ class StoreMapState {
     final s = StoreMapState();
     s.tool = tool;
     s.activeFloorId = activeFloorId;
-    s.activeCategoryId = activeCategoryId;
     s.selectedZoneId = selectedZoneId;
     s.selectedPoiId = selectedPoiId;
     s.snapToGrid = snapToGrid;
@@ -34,7 +31,6 @@ class StoreMapState {
   void loadFrom(StoreMapState other) {
     tool = other.tool;
     activeFloorId = other.activeFloorId;
-    activeCategoryId = other.activeCategoryId;
     selectedZoneId = other.selectedZoneId;
     selectedPoiId = other.selectedPoiId;
     snapToGrid = other.snapToGrid;

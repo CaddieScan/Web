@@ -15,12 +15,8 @@ class StoreMapController {
   bool initialized = false;
   void init(StoreMapData initialData) {
     data = initialData.deepCopy();
-    // Default config if needed
     if (data.floors.isEmpty) {
       data.floors.add(StoreFloor(id: 'floor_rdc', name: 'RDC', order: 0));
-    }
-    if (data.categories.isEmpty) {
-      data.categories.add(StoreCategory(id: 'cat_default', name: 'Defaut', color: Colors.grey));
     }
     state.activeFloorId = data.floors.first.id;
     zones = ZoneController(state, data);
@@ -40,15 +36,12 @@ class StoreMapController {
   EditorTool get tool => state.tool;
   String? get selectedZoneId => state.selectedZoneId;
   String? get selectedPoiId => state.selectedPoiId;
-  // Delegates
   void undo() => undoManager.undo();
   bool get canUndo => undoManager.canUndo;
   void saveUndoState() => undoManager.saveState();
   StoreMapData exportData() => data.deepCopy();
   List<StoreFloor> get floors => data.floors;
   String get activeFloorId => state.activeFloorId;
-  List<StoreCategory> get categories => data.categories;
-  String get activeCategoryId => state.activeCategoryId;
   List<StoreZone> get activeZones => data.zonesByFloor[state.activeFloorId] ?? const [];
   List<StorePoi> get activePois => data.poisByFloor[state.activeFloorId] ?? const [];
   void addFloor() {
@@ -67,40 +60,8 @@ class StoreMapController {
       state.selectedZoneId = null;
     }
   }
-  void addCategory(String name) {
-    if (name.isEmpty) return;
-    final id = DateTime.now().millisecondsSinceEpoch.toString();
-    final c = StoreCategory(id: id, name: name, color: Colors.primaries[data.categories.length % Colors.primaries.length]);
-    data.categories.add(c);
-    setActiveCategory(id);
-    saveUndoState();
-  }
-  void setActiveCategory(String id) {
-    if (data.categories.any((c) => c.id == id)) {
-      state.activeCategoryId = id;
-    }
-  }
-  void renameCategory(String id, String name) {
-    if (name.isEmpty) return;
-    final c = data.categories.firstWhere((c) => c.id == id);
-    c.name = name;
-    saveUndoState();
-  }
-  bool deleteCategory(String id) {
-    if (data.categories.length <= 1) return false;
-    final inUse = data.zonesByFloor.values.expand((z) => z).any((z) => z.categoryId == id);
-    if (inUse) return false;
-    data.categories.removeWhere((c) => c.id == id);
-    if (state.activeCategoryId == id) {
-      state.activeCategoryId = data.categories.first.id;
-    }
-    saveUndoState();
-    return true;
-  }
-  // Hit tests
   StoreZone? hitTestZone(double x, double y) => zones.hitTest(x, y);
   StorePoi? hitTestPoi(double x, double y) => pois.hitTest(x, y);
-  // Deletion
   void deleteSelected() {
     bool changed = false;
     if (state.selectedZoneId != null) {
@@ -115,11 +76,9 @@ class StoreMapController {
     }
     if (changed) saveUndoState();
   }
-  // Zone specific overrides
   void startMoveZone(StoreZone z, double px, double py) => zones.startMove(z, px, py);
   bool updateMoveZone(StoreZone z, double px, double py) => zones.updateMove(z, px, py);
   void finishMoveZone() { zones.finishMove(); saveUndoState(); }
-  // Poi specific overrides
   StorePoi? poiById(String id) => pois.poiById(id);
   void startMovePoi(StorePoi p, double px, double py) => pois.startMove(p, px, py);
   bool updateMovePoi(StorePoi p, double px, double py) => pois.updateMove(p, px, py);

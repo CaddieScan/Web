@@ -35,10 +35,14 @@ class StoreMapService {
   Future<StoreMapData> saveMap(String storeId, StoreMapData data) async {
     try {
       final uri = Uri.parse('$baseUrl/stores/$storeId/map');
+      
+      final mapData = data.toJson();
+      mapData['storeId'] = storeId; // On ajoute le storeId au payload au cas où l'API l'exigerait
+
       final res = await client.put(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(data.toJson()),
+        body: jsonEncode(mapData),
       );
 
       if (res.statusCode != 200) {

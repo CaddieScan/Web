@@ -52,15 +52,11 @@ class StoreMapPainter extends CustomPainter {
     final zones = ctrl.data.zonesByFloor[activeFloor] ?? [];
     for (final z in zones) {
       final isSelected = z.id == ctrl.selectedZoneId;
-      final cat = ctrl.data.categories.firstWhere(
-        (c) => c.id == z.categoryId,
-        orElse: () => StoreCategory(id: '', name: 'Inconnu', color: Colors.grey),
-      );
       final paint = Paint()
-        ..color = cat.color.withValues(alpha: 0.3)
+        ..color = z.color.withValues(alpha: 0.3)
         ..style = PaintingStyle.fill;
       final borderPaint = Paint()
-        ..color = isSelected ? Colors.blue : cat.color
+        ..color = isSelected ? Colors.blue : z.color
         ..strokeWidth = isSelected ? 2 / scale : 1 / scale
         ..style = PaintingStyle.stroke;
       if (z.shape == ZoneShape.rect) {

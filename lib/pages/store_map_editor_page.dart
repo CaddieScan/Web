@@ -106,27 +106,27 @@ class StoreMapEditorPageState extends State<StoreMapEditorPage> {
             behavior: HitTestBehavior.opaque,
             onTap: () {},
             child: Scaffold(
-              body: Column(
+              body: Stack(
                 children: [
-                  StoreMapToolbar(
-                    ctrl: ctrl,
-                    storeName: widget.storeName,
-                    onChanged: refresh,
-                    onSave: widget.onSave,
-                  ),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        StoreMapLeftPanel(ctrl: ctrl, onChanged: refresh),
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              StoreMapCanvas(ctrl: ctrl, onChanged: refresh),
-                            ],
-                          ),
+                  StoreMapCanvas(ctrl: ctrl, onChanged: refresh),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      StoreMapToolbar(
+                        ctrl: ctrl,
+                        storeName: widget.storeName,
+                        onChanged: refresh,
+                        onSave: widget.onSave,
+                      ),
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            StoreMapLeftPanel(ctrl: ctrl, onChanged: refresh),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -27,6 +27,15 @@ class StoreMapCanvasState extends State<StoreMapCanvas> {
       (screen.dy - pan.dy) / scale,
     );
   }
+
+  Offset snapToGrid(Offset offset) {
+    const gridSize = 20.0;
+    return Offset(
+      (offset.dx / gridSize).round() * gridSize,
+      (offset.dy / gridSize).round() * gridSize,
+    );
+  }
+
   void onPointerSignal(PointerSignalEvent e) {
     if (e is PointerScrollEvent) {
       final zoomDelta = e.scrollDelta.dy > 0 ? -0.1 : 0.1;
@@ -53,7 +62,8 @@ class StoreMapCanvasState extends State<StoreMapCanvas> {
     if (e.buttons == kSecondaryMouseButton) {
       return;
     }
-    final world = screenToWorld(e.localPosition);
+    final worldRaw = screenToWorld(e.localPosition);
+    final world = snapToGrid(worldRaw);
     if (ctrl.tool == EditorTool.placeEntry) {
       setState(() => ctrl.placePoi(PoiType.entry, world));
       widget.onChanged();
@@ -74,12 +84,12 @@ class StoreMapCanvasState extends State<StoreMapCanvas> {
         widget.onChanged();
         return;
       }
-      final z = ctrl.hitTestZone(world.dx, world.dy);
+      final z = ctrl.hitTestZone(worldRaw.dx, worldRaw.dy);
       if (z != null) {
         setState(() {
           ctrl.state.selectedZoneId = z.id;
           ctrl.state.selectedPoiId = null;
-          ctrl.startMoveZone(z, world.dx, world.dy);
+          ctrl.startMoveZone(z, worldRaw.dx, worldRaw.dy);
         });
         widget.onChanged();
         return;
@@ -104,7 +114,9 @@ class StoreMapCanvasState extends State<StoreMapCanvas> {
       });
       return;
     }
-    final world = screenToWorld(e.localPosition);
+    final worldRaw = screenToWorld(e.localPosition);
+    final world = snapToGrid(worldRaw);
+
     if (ctrl.tool == EditorTool.select) {
       if (ctrl.pois.isMoving && ctrl.state.selectedPoiId != null) {
         final p = ctrl.poiById(ctrl.state.selectedPoiId!);

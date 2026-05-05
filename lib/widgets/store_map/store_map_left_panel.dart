@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import '../../controllers/store_map/store_map_controller.dart';
-import '../../controllers/store_map/store_map_state.dart';
 class StoreMapLeftPanel extends StatelessWidget {
   final StoreMapController ctrl;
   final VoidCallback onChanged;
@@ -40,41 +39,6 @@ class StoreMapLeftPanel extends StatelessWidget {
               },
             );
           }),
-          const Divider(),
-          ListTile(
-            title: const Text('Catégories', style: TextStyle(fontWeight: FontWeight.bold)),
-            trailing: IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                ctrl.addCategory('Nouvelle Catégorie');
-                onChanged();
-              },
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              children: ctrl.categories.map((c) {
-                final isActive = ctrl.activeCategoryId == c.id;
-                return ListTile(
-                  selected: isActive,
-                  leading: CircleAvatar(backgroundColor: c.color, radius: 10),
-                  title: Text(c.name),
-                  onTap: () {
-                    ctrl.setActiveCategory(c.id);
-                    onChanged();
-                  },
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, size: 16),
-                    onPressed: () {
-                      if (ctrl.deleteCategory(c.id)) {
-                        onChanged();
-                      }
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
         ],
       ),
     );

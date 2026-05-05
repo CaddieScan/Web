@@ -4,7 +4,6 @@ import '../../models/store_map_models.dart';
 import '../../models/store_poi_models.dart';
 class StoreMapData {
   final List<StoreFloor> floors = [];
-  final List<StoreCategory> categories = [];
   final Map<String, List<StoreZone>> zonesByFloor = {};
   final Map<String, List<StorePoi>> poisByFloor = {};
   StoreMapData();
@@ -12,9 +11,6 @@ class StoreMapData {
     final d = StoreMapData();
     for (final item in (json['floors'] as List<dynamic>? ?? const [])) {
       d.floors.add(StoreFloor.fromJson(item));
-    }
-    for (final item in (json['categories'] as List<dynamic>? ?? const [])) {
-      d.categories.add(StoreCategory.fromJson(item));
     }
     for (final f in d.floors) {
       d.zonesByFloor.putIfAbsent(f.id, () => []);
@@ -35,7 +31,9 @@ class StoreMapData {
   Map<String, dynamic> toJson() {
     return {
       'floors': floors.map((f) => f.toJson()).toList(),
-      'categories': categories.map((c) => c.toJson()).toList(),
+      'categories': [
+        {'id': 'default_category', 'name': 'Default', 'color': '#9e9e9e'}
+      ],
       'zones': zonesByFloor.values.expand((zs) => zs).map((z) => z.toJson()).toList(),
       'pois': poisByFloor.values.expand((pois) => pois).map((p) => p.toJson()).toList(),
     };

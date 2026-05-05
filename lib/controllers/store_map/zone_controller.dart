@@ -1,4 +1,5 @@
-﻿import '../../models/store_map_models.dart';
+﻿import 'package:flutter/material.dart';
+import '../../models/store_map_models.dart';
 import 'store_map_data.dart';
 import 'store_map_state.dart';
 class ZoneController {
@@ -40,19 +41,19 @@ class ZoneController {
     if (!isDrawing) return;
     isDrawing = false;
     if (state.activeFloorId.isEmpty) return;
-    final catId = data.categories.isNotEmpty ? data.categories.first.id : 'cat_default';
     final left = startX < currX ? startX : currX;
     final top = startY < currY ? startY : currY;
     final w = (currX - startX).abs();
     final h = (currY - startY).abs();
     if (w < 10 || h < 10) return;
     data.zonesByFloor.putIfAbsent(state.activeFloorId, () => []);
+    final color = Colors.grey;
     final id = DateTime.now().millisecondsSinceEpoch.toString();
     final newZone = StoreZone(
       id: id,
       floorId: state.activeFloorId,
-      name: 'Nouvelle zone',
-      categoryId: catId,
+      name: 'Rayon',
+      color: color,
       x: left,
       y: top,
       w: w,
