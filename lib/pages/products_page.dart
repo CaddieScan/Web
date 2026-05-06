@@ -10,7 +10,7 @@ import '../services/product_service.dart';
 import '../utils/error_handler.dart';
 
 // URL où l'API sert les images des produits
-const apiHost = 'http://localhost:8000';
+const apiHost = 'https://back-k1ee.onrender.com';
 // image par défaut pour les produits sans image précisée
 const placeholderImg = 'images/product_placeholder.png';
 
@@ -75,7 +75,8 @@ class ProductsPageState extends State<ProductsPage> {
     // filtre en fonction de ta recherche ET la catégorie sélectionnée
     // tu modifies la recherche ou la catégorie, la liste se rafraîchit direct
     return all.where((p) {
-      final matchSearch = search.isEmpty || p.name.toLowerCase().contains(search.toLowerCase());
+      final matchSearch =
+          search.isEmpty || p.name.toLowerCase().contains(search.toLowerCase());
       final matchCat = category == 'Tous' || p.category == category;
       return matchSearch && matchCat;
     }).toList();
@@ -93,7 +94,9 @@ class ProductsPageState extends State<ProductsPage> {
 
     final toSave = created.copyWith(
       storeId: widget.store.id,
-      imageAssetPath: created.imageAssetPath.isEmpty ? placeholderImg : created.imageAssetPath,
+      imageAssetPath: created.imageAssetPath.isEmpty
+          ? placeholderImg
+          : created.imageAssetPath,
     );
 
     try {
@@ -128,7 +131,9 @@ class ProductsPageState extends State<ProductsPage> {
     final toSave = updated.copyWith(
       id: product.id,
       storeId: widget.store.id,
-      imageAssetPath: updated.imageAssetPath.isEmpty ? placeholderImg : updated.imageAssetPath,
+      imageAssetPath: updated.imageAssetPath.isEmpty
+          ? placeholderImg
+          : updated.imageAssetPath,
     );
 
     try {
@@ -182,20 +187,22 @@ class ProductsPageState extends State<ProductsPage> {
     int? colName, colCategory, colPrice, colQty, colUnit;
     final header = rows.first.map((e) => norm(e.toString())).toList();
 
-    bool looksLikeHeader = header.any((h) =>
-        h.contains('name') ||
-        h.contains('nom') ||
-        h.contains('product') ||
-        h.contains('produit') ||
-        h.contains('category') ||
-        h.contains('categorie') ||
-        h.contains('prix') ||
-        h.contains('price') ||
-        h.contains('stock') ||
-        h.contains('quantity') ||
-        h.contains('qty') ||
-        h.contains('unit') ||
-        h.contains('unite'));
+    bool looksLikeHeader = header.any(
+      (h) =>
+          h.contains('name') ||
+          h.contains('nom') ||
+          h.contains('product') ||
+          h.contains('produit') ||
+          h.contains('category') ||
+          h.contains('categorie') ||
+          h.contains('prix') ||
+          h.contains('price') ||
+          h.contains('stock') ||
+          h.contains('quantity') ||
+          h.contains('qty') ||
+          h.contains('unit') ||
+          h.contains('unite'),
+    );
 
     int startIndex = looksLikeHeader ? 1 : 0;
 
@@ -203,23 +210,34 @@ class ProductsPageState extends State<ProductsPage> {
       for (int i = 0; i < header.length; i++) {
         final h = header[i];
 
-        if (colName == null && (h == 'name' || h == 'nom' || h.contains('product') || h.contains('produit'))) {
+        if (colName == null &&
+            (h == 'name' ||
+                h == 'nom' ||
+                h.contains('product') ||
+                h.contains('produit'))) {
           colName = i;
         }
 
-        if (colCategory == null && (h == 'category' || h == 'categorie' || h.contains('categ'))) {
+        if (colCategory == null &&
+            (h == 'category' || h == 'categorie' || h.contains('categ'))) {
           colCategory = i;
         }
 
-        if (colPrice == null && (h == 'price' || h == 'prix' || h.contains('tarif'))) {
+        if (colPrice == null &&
+            (h == 'price' || h == 'prix' || h.contains('tarif'))) {
           colPrice = i;
         }
 
-        if (colQty == null && (h == 'quantity' || h == 'qty' || h == 'stock' || h.contains('quant'))) {
+        if (colQty == null &&
+            (h == 'quantity' ||
+                h == 'qty' ||
+                h == 'stock' ||
+                h.contains('quant'))) {
           colQty = i;
         }
 
-        if (colUnit == null && (h == 'unit' || h == 'unite' || h.contains('uom'))) {
+        if (colUnit == null &&
+            (h == 'unit' || h == 'unite' || h.contains('uom'))) {
           colUnit = i;
         }
       }
@@ -242,11 +260,19 @@ class ProductsPageState extends State<ProductsPage> {
         continue;
       }
 
-      final nameStr = colName < row.length ? row[colName].toString().trim() : '';
-      final catStr = colCategory < row.length ? row[colCategory].toString().trim() : '';
-      final priceStr = colPrice < row.length ? row[colPrice].toString().trim() : '';
+      final nameStr = colName < row.length
+          ? row[colName].toString().trim()
+          : '';
+      final catStr = colCategory < row.length
+          ? row[colCategory].toString().trim()
+          : '';
+      final priceStr = colPrice < row.length
+          ? row[colPrice].toString().trim()
+          : '';
       final qtyStr = colQty < row.length ? row[colQty].toString().trim() : '';
-      final unitStr = colUnit < row.length ? row[colUnit].toString().trim() : '';
+      final unitStr = colUnit < row.length
+          ? row[colUnit].toString().trim()
+          : '';
 
       if (nameStr.isEmpty) {
         skipped++;
@@ -255,26 +281,32 @@ class ProductsPageState extends State<ProductsPage> {
 
       final name = nameStr;
       final category_ = catStr.isEmpty ? 'Autre' : catStr;
-      final price = priceStr.isEmpty ? null : double.tryParse(priceStr.replaceAll(',', '.'));
+      final price = priceStr.isEmpty
+          ? null
+          : double.tryParse(priceStr.replaceAll(',', '.'));
       final qty = qtyStr.isEmpty ? 0 : int.tryParse(qtyStr) ?? 0;
       final unit = unitStr.isEmpty ? 'pcs' : unitStr;
 
-      toAdd.add(Product(
-        id: '',
-        storeId: widget.store.id,
-        name: name,
-        category: category_,
-        price: price,
-        quantity: qty,
-        unit: unit,
-        barcode: null,
-        imageAssetPath: placeholderImg,
-      ));
+      toAdd.add(
+        Product(
+          id: '',
+          storeId: widget.store.id,
+          name: name,
+          category: category_,
+          price: price,
+          quantity: qty,
+          unit: unit,
+          barcode: null,
+          imageAssetPath: placeholderImg,
+        ),
+      );
     }
 
     if (toAdd.isEmpty) {
       if (!mounted) return;
-      ErrorHandler.showError('Aucun produit importable. Lignes ignorees: $skipped');
+      ErrorHandler.showError(
+        'Aucun produit importable. Lignes ignorees: $skipped',
+      );
       return;
     }
 
@@ -283,7 +315,8 @@ class ProductsPageState extends State<ProductsPage> {
       await load();
 
       if (!mounted) return;
-      final msg = 'Import termine: ${toAdd.length} ajoutes'
+      final msg =
+          'Import termine: ${toAdd.length} ajoutes'
           '${skipped > 0 ? ' ($skipped ignorees)' : ''}';
       ErrorHandler.showSuccess(msg);
     } catch (e) {
@@ -313,10 +346,7 @@ class ProductsPageState extends State<ProductsPage> {
         Expanded(
           child: items.isEmpty
               ? const Center(child: Text('Aucun produit'))
-              : ProductList(
-                  products: items,
-                  onEditProduct: editProduct,
-                ),
+              : ProductList(products: items, onEditProduct: editProduct),
         ),
       ],
     );
@@ -363,7 +393,9 @@ class ProductToolbar extends StatelessWidget {
           const SizedBox(width: 12),
           DropdownButton<String>(
             value: category,
-            items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            items: categories
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
             onChanged: (v) => onCategoryChanged(v ?? 'Tous'),
           ),
           const SizedBox(width: 12),
@@ -468,8 +500,12 @@ class ProductListItem extends StatelessWidget {
         child: buildImage(),
       ),
       title: Text(product.name),
-      subtitle: Text('${product.category} • Stock: ${product.quantity} ${product.unit}'),
-      trailing: product.price == null ? null : Text('${product.price!.toStringAsFixed(2)} €'),
+      subtitle: Text(
+        '${product.category} • Stock: ${product.quantity} ${product.unit}',
+      ),
+      trailing: product.price == null
+          ? null
+          : Text('${product.price!.toStringAsFixed(2)} €'),
       onTap: onTap,
     );
   }
@@ -529,7 +565,9 @@ class ProductDialogState extends State<ProductDialog> {
       return;
     }
 
-    final price = priceStr.isEmpty ? null : double.tryParse(priceStr.replaceAll(',', '.'));
+    final price = priceStr.isEmpty
+        ? null
+        : double.tryParse(priceStr.replaceAll(',', '.'));
 
     final qty = int.tryParse(qtyCtrl.text.trim());
     final unit = unitCtrl.text.trim();
@@ -608,7 +646,9 @@ class ProductDialogState extends State<ProductDialog> {
                 Expanded(
                   child: TextField(
                     controller: qtyCtrl,
-                    decoration: const InputDecoration(labelText: 'Quantite (stock)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Quantite (stock)',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -616,7 +656,9 @@ class ProductDialogState extends State<ProductDialog> {
                 Expanded(
                   child: TextField(
                     controller: unitCtrl,
-                    decoration: const InputDecoration(labelText: 'Unite (pcs, kg, L...)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Unite (pcs, kg, L...)',
+                    ),
                   ),
                 ),
               ],
@@ -639,10 +681,7 @@ class ProductDialogState extends State<ProductDialog> {
       ),
       actions: [
         if (isEdit)
-          TextButton(
-            onPressed: confirmDelete,
-            child: const Text('Supprimer'),
-          ),
+          TextButton(onPressed: confirmDelete, child: const Text('Supprimer')),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Annuler'),
@@ -663,8 +702,5 @@ class ProductDialogAction {
   final bool delete;
 
   const ProductDialogAction.save(this.product) : delete = false;
-  const ProductDialogAction.delete()
-      : product = null,
-        delete = true;
+  const ProductDialogAction.delete() : product = null, delete = true;
 }
-

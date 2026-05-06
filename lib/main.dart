@@ -8,7 +8,7 @@ import 'services/product_service.dart';
 // point d'entrée principal de l'app
 // on initialise les services avec l'URL de base de l'API
 void main() {
-  const baseUrl = 'http://localhost:8000/api';
+  const baseUrl = 'https://back-k1ee.onrender.com/api';
 
   // les services sont créés directement sans passer par les repositories
   final storeService = StoreService(baseUrl: baseUrl);
