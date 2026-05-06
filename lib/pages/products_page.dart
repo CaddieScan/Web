@@ -12,7 +12,7 @@ import '../utils/error_handler.dart';
 // URL où l'API sert les images des produits
 const apiHost = 'https://back-k1ee.onrender.com';
 // image par défaut pour les produits sans image précisée
-const placeholderImg = 'images/product_placeholder.png';
+const placeholderImg = 'assets/images/product_placeholder.png';
 
 // page pour gérer les produits d'un magasin
 // tu peux en ajouter, modifier, supprimer, ou importer un tas via CSV
