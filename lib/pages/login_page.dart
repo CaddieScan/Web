@@ -32,38 +32,57 @@ class LoginPageState extends State<LoginPage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: Image.asset('images/img.png', width: 140, height: 140, fit: BoxFit.cover),
+              child: Image.asset(
+                'images/img.png',
+                width: 140,
+                height: 140,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(height: 40),
-            const SizedBox(width: 280, child: TextField(decoration: InputDecoration(hintText: 'Username'))),
+            const SizedBox(
+              width: 280,
+              child: TextField(
+                decoration: InputDecoration(hintText: 'Username'),
+              ),
+            ),
             const SizedBox(height: 15),
-            const SizedBox(width: 280, child: TextField(obscureText: true, decoration: InputDecoration(hintText: 'Password'))),
+            const SizedBox(
+              width: 280,
+              child: TextField(
+                obscureText: true,
+                decoration: InputDecoration(hintText: 'Password'),
+              ),
+            ),
             const SizedBox(height: 30),
             loading
                 ? const CircularProgressIndicator()
                 : FilledButton(
-              onPressed: () async {
-                setState(() => loading = true);
-                await Future.delayed(const Duration(seconds: 2));
-                if (mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => HomePage(
-                        storeService: widget.storeService,
-                        productService: widget.productService,
-                        storeMapService: widget.storeMapService,
-                      ),
+                    onPressed: () async {
+                      setState(() => loading = true);
+                      await Future.delayed(const Duration(seconds: 2));
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => HomePage(
+                              storeService: widget.storeService,
+                              productService: widget.productService,
+                              storeMapService: widget.storeMapService,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(220, 50),
+                      shape: const StadiumBorder(),
                     ),
-                  );
-                }
-              },
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(220, 50),
-                shape: const StadiumBorder(),
-              ),
-              child: const Text('Connexion', style: TextStyle(fontSize: 18)),
-            ),
+                    child: const Text(
+                      'Connexionz',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
           ],
         ),
       ),
