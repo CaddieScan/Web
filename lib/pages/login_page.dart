@@ -79,7 +79,7 @@ class LoginPageState extends State<LoginPage> {
                       shape: const StadiumBorder(),
                     ),
                     child: const Text(
-                      'Connexiont',
+                      'Connexion',
                       style: TextStyle(fontSize: 18),
                     ),
                   ),
